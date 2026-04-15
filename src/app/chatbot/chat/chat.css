@@ -1,0 +1,16 @@
+.fa-microphone-lines {
+  color: rgb(11, 64, 160);
+  filter: drop-shadow(0 0 2px rgba(16, 72, 175, 0.2));
+}
+
+/* Cuando el micro esté encendido, que brille en rojo */
+.text-red-500 .fa-microphone-lines-slash {
+  color: #ef4444 !important;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
