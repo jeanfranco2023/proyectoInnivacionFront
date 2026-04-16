@@ -1,20 +1,19 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
-import { AuthApiService } from '../../service/auth/auth-api.service';
-import { LoginRequest } from '../../models/auth/auth.types';
-import { SessionService } from '../../service/auth/session.service';
+import { AuthLoginApiService } from '../../../service/auth/auth-login.api.service';
+import { LoginRequest } from '../../../models/auth/auth-login.types';
+import { SessionService } from '../../../service/auth/session.service';
 
 @Component({
-  selector: 'app-auth',
+  selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './auth.html',
-  styleUrl: './auth.css',
+  imports: [CommonModule, FormsModule, RouterLink],
+  templateUrl: './login.html',
 })
-export class Auth implements OnInit {
+export class LoginComponent implements OnInit {
   form: LoginRequest = {
     username: 'demo',
     password: 'demo123',
@@ -24,7 +23,7 @@ export class Auth implements OnInit {
   errorMessage = '';
 
   constructor(
-    private readonly authApiService: AuthApiService,
+    private readonly authLoginApiService: AuthLoginApiService,
     private readonly sessionService: SessionService,
     private readonly router: Router,
   ) {}
@@ -35,11 +34,11 @@ export class Auth implements OnInit {
     }
   }
 
-  async login() {
+  login() {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.authApiService.login(this.form).subscribe({
+    this.authLoginApiService.login(this.form).subscribe({
       next: (session) => {
         this.sessionService.setSession({
           accessToken: session.access_token,
@@ -59,3 +58,4 @@ export class Auth implements OnInit {
     });
   }
 }
+
