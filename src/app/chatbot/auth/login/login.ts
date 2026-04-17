@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthLoginApiService } from '../../../service/auth/auth-login.api.service';
 import { LoginRequest } from '../../../models/auth/auth-login.types';
@@ -21,16 +21,19 @@ export class LoginComponent implements OnInit {
 
   isLoading = false;
   errorMessage = '';
+  private returnUrl = '/chat';
 
   constructor(
     private readonly authLoginApiService: AuthLoginApiService,
     private readonly sessionService: SessionService,
+    private readonly route: ActivatedRoute,
     private readonly router: Router,
   ) {}
 
   ngOnInit() {
+    this.returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/chat';
     if (this.sessionService.isAuthenticated()) {
-      void this.router.navigate(['/chat']);
+      void this.router.navigateByUrl(this.returnUrl);
     }
   }
 
@@ -45,7 +48,7 @@ export class LoginComponent implements OnInit {
           user: session.user,
           expiresAt: Date.now() + session.expires_in * 1000,
         });
-        void this.router.navigate(['/chat']);
+        void this.router.navigateByUrl(this.returnUrl);
       },
       error: (error) => {
         this.errorMessage =

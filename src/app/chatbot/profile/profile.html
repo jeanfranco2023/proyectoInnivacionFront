@@ -1,0 +1,109 @@
+<div class="mc-page-enter min-h-screen bg-gradient-to-br from-slate-100 via-slate-100 to-blue-50 px-4 py-8 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100 sm:px-6">
+  <div class="mx-auto w-full max-w-5xl space-y-6">
+    <section class="mc-card overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-slate-950/40">
+      <div class="relative px-6 pb-6 pt-7 sm:px-8">
+        <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-200/40 blur-3xl dark:bg-sky-500/20"></div>
+
+        <div class="relative z-10 flex flex-wrap items-start justify-between gap-4">
+          <div class="flex min-w-0 items-center gap-4">
+            <input #avatarFileInput type="file" accept="image/*" class="hidden" (change)="onProfileImageSelected($event)" />
+            <button
+              type="button"
+              (click)="openImagePicker(avatarFileInput)"
+              [disabled]="isSaving"
+              class="group relative rounded-2xl transition disabled:cursor-not-allowed"
+              title="Cambiar foto de perfil"
+            >
+              <div *ngIf="profileImageUrl; else initialsAvatar"
+                   class="h-16 w-16 overflow-hidden rounded-2xl ring-2 ring-blue-200 dark:ring-sky-400/30">
+                <img [src]="profileImageUrl" alt="Foto de perfil" class="h-full w-full object-cover">
+              </div>
+              <ng-template #initialsAvatar>
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 text-xl font-bold text-white shadow-lg shadow-blue-400/30">
+                  {{ initials }}
+                </div>
+              </ng-template>
+              <span class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-slate-900/0 text-[11px] font-semibold text-white transition group-hover:bg-slate-900/55 dark:group-hover:bg-slate-950/60">
+                Cambiar
+              </span>
+            </button>
+
+            <div class="min-w-0">
+              <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Cuenta de usuario</p>
+              <h1 class="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">{{ displayName }}</h1>
+              <p class="truncate text-sm text-slate-500 dark:text-slate-400">@{{ username }}</p>
+              <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Haz clic en el avatar para actualizar la foto.</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <a routerLink="/chat"
+               class="mc-button inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+              Volver al chat
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid gap-4 lg:grid-cols-3">
+      <article class="mc-card rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 lg:col-span-2">
+        <h2 class="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Informacion personal</h2>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Nombre visible</p>
+            <p class="mt-1 text-sm font-semibold">{{ displayName }}</p>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Usuario</p>
+            <p class="mt-1 text-sm font-semibold">{{ username }}</p>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Carrera</p>
+            <p class="mt-1 text-sm font-semibold">{{ career }}</p>
+          </div>
+
+        </div>
+      </article>
+
+      <article class="mc-card rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+        <h2 class="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Roles</h2>
+
+        <div *ngIf="roleList.length > 0" class="flex flex-wrap gap-2">
+          <span *ngFor="let role of roleList"
+                class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+            {{ role }}
+          </span>
+        </div>
+
+        <p *ngIf="roleList.length === 0" class="text-sm text-slate-500 dark:text-slate-400">No definido</p>
+      </article>
+    </section>
+
+    <p *ngIf="saveMessage" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-200">
+      {{ saveMessage }}
+    </p>
+
+    <section class="mc-card rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+      <h2 class="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Seguridad de sesion</h2>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Estado</p>
+          <p class="mt-1 text-sm font-semibold">{{ sessionStatus }}</p>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Expira</p>
+          <p class="mt-1 text-sm font-semibold">
+            {{ sessionExpiry ? (sessionExpiry | date:'full') : 'No disponible' }}
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+

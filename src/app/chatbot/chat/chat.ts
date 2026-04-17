@@ -1,14 +1,23 @@
-import { Component, ChangeDetectorRef, HostListener, OnInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, ChangeDetectorRef, HostListener, OnDestroy, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { marked } from 'marked';
 
 import { ChatApiService } from '../../service/chat/chat-api.service';
+import { AuthApiService } from '../../service/auth/auth-api.service';
 import { SessionService } from '../../service/auth/session.service';
-import { AiProvider } from '../../models/chat/chat-api.types';
+import {
+  AiProvider,
+  ChatDetailResponse,
+  ChatSummaryResponse,
+  SharedPromptResponse,
+} from '../../models/chat/chat-api.types';
 import { enviroment } from '../../../environments/enviroment';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+
+type ThemePreference = 'light' | 'dark';
+type ShareScope = 'prompt' | 'chat' | 'custom';
 
 interface ChatMessage {
   role: 'user' | 'bot';
@@ -26,15 +35,26 @@ interface ChatItem {
   model: string;
 }
 
+interface PromptListItem {
+  kind: 'own' | 'shared';
+  title: string;
+  subtitle: string;
+  preview: string;
+  favorite?: boolean;
+  sharedFrom?: string;
+  chat?: ChatItem;
+  sharedPrompt?: SharedPromptResponse;
+}
+
 @Component({
   selector: 'app-chat',
   templateUrl: './chat.html',
   standalone: true,
   imports: [CommonModule, FormsModule],
 })
-export class ChatComponent implements OnInit {
+export class ChatComponent implements OnInit, OnDestroy {
   nombreUsuario: string = 'Seven';
-  private readonly currentUsername: string = 'demo';
+  private currentUsername: string = 'demo';
   userInput: string = '';
   selectedProvider: AiProvider = 'gemini';
   selectedModel: string = 'gemini-2.5-flash';
@@ -42,13 +62,31 @@ export class ChatComponent implements OnInit {
   isListening: boolean = false;
   searchTerm: string = '';
   isDarkMode: boolean = false;
+  themePreference: ThemePreference = 'light';
   micStatusMessage: string = '';
   micStatusType: 'info' | 'error' | 'success' = 'info';
   isUserMenuOpen: boolean = false;
+  isLoadingChats: boolean = false;
+  isChatLoading: boolean = false;
+  chatModalMode: 'rename' | 'delete' | null = null;
+  chatModalTarget: ChatItem | null = null;
+  chatModalTitleDraft: string = '';
+  isChatModalSubmitting: boolean = false;
   private lastInputWasVoice: boolean = false;
+  isLoadingSharedPrompts: boolean = false;
+  isShareModalOpen: boolean = false;
+  isSharingPrompt: boolean = false;
+  shareRecipient: string = '';
+  shareScope: ShareScope = 'prompt';
+  shareDraftText: string = '';
+  shareDraftTitle: string = '';
+  shareStatusMessage: string = '';
+  shareResultUrl: string = '';
 
   messages: ChatMessage[] = [];
   misChats: ChatItem[] = [];
+  sharedPrompts: SharedPromptResponse[] = [];
+  private readonly chatCache = new Map<string, ChatItem>();
   private recognition: any = null;
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
@@ -56,6 +94,9 @@ export class ChatComponent implements OnInit {
   private readonly speechToTextEndpoint: string = `${enviroment.apiBaseUrl}${enviroment.endpoints.speechToText}`;
   private recognitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private activeChat: ChatItem | null = null;
+  profileImageUrl: string | null = null;
+  private profileImageObjectUrl: string | null = null;
+  private sessionSubscription: Subscription | null = null;
   @ViewChild('messageTextarea') messageTextarea?: ElementRef<HTMLTextAreaElement>;
 
   readonly providerOptions: { value: AiProvider; label: string }[] = [
@@ -79,13 +120,338 @@ export class ChatComponent implements OnInit {
   constructor(
     private readonly cdr: ChangeDetectorRef,
     private readonly chatApiService: ChatApiService,
+    private readonly authApiService: AuthApiService,
     private readonly sessionService: SessionService,
+    private readonly route: ActivatedRoute,
     private readonly router: Router,
   ) {
-    this.isDarkMode = globalThis.localStorage?.getItem('chat-theme') === 'dark';
     const currentUser = this.sessionService.getUser();
     this.nombreUsuario = currentUser?.display_name || 'Seven';
     this.currentUsername = currentUser?.username || 'demo';
+
+    const storedTheme = globalThis.localStorage?.getItem('chat-theme');
+    const serverTheme: ThemePreference | null =
+      currentUser?.is_dark === true ? 'dark' : currentUser?.is_dark === false ? 'light' : null;
+    const initialTheme: ThemePreference =
+      storedTheme === 'dark' || storedTheme === 'light'
+        ? storedTheme
+        : serverTheme || this.normalizeThemePreference(currentUser?.theme_preference);
+
+    this.themePreference = initialTheme;
+    this.applyThemePreference(initialTheme, false);
+    this.loadProfileImageFromSession();
+  }
+
+  private loadProfileImageFromSession() {
+    const currentUser = this.sessionService.getUser();
+    const profileRef = currentUser?.profile_image_url?.trim();
+
+    if (!profileRef) {
+      this.profileImageUrl = null;
+      return;
+    }
+
+    if (profileRef.startsWith('http')) {
+      this.profileImageUrl = profileRef;
+      return;
+    }
+
+    this.authApiService.getProfileImageBlob(`${Date.now()}`).subscribe({
+      next: (blob) => {
+        if (this.profileImageObjectUrl) {
+          URL.revokeObjectURL(this.profileImageObjectUrl);
+        }
+        this.profileImageObjectUrl = URL.createObjectURL(blob);
+        this.profileImageUrl = this.profileImageObjectUrl;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.profileImageUrl = null;
+      },
+    });
+  }
+
+  private getSystemThemePreference(): 'light' | 'dark' {
+    return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  private normalizeThemePreference(preference?: string | null): ThemePreference {
+    if (preference === 'dark' || preference === 'light') return preference;
+    return this.getSystemThemePreference();
+  }
+
+  private applyThemePreference(preference: ThemePreference, persist = true) {
+    this.themePreference = preference;
+    this.isDarkMode = preference === 'dark';
+
+    // Tailwind dark mode por clase en <html>
+    document.documentElement.classList.toggle('dark', this.isDarkMode);
+
+    if (persist) {
+      globalThis.localStorage?.setItem('chat-theme', preference);
+    }
+  }
+
+  private async persistThemePreference(preference: ThemePreference) {
+    try {
+      const updatedUser = await firstValueFrom(this.authApiService.updateThemePreference(preference));
+      this.sessionService.updateUser(updatedUser);
+    } catch {
+      // Si falla la persistencia, se mantiene el cambio visual local.
+    }
+  }
+
+  private toAiProvider(value: string | undefined): AiProvider {
+    return value?.toLowerCase() === 'ollama' ? 'ollama' : 'gemini';
+  }
+
+  private mapChatSummary(chat: ChatSummaryResponse): ChatItem {
+    return {
+      id: chat.id ?? null,
+      titulo: chat.title || 'Nuevo chat',
+      favorito: false,
+      historial: [],
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+    };
+  }
+
+  private mapChatDetail(chat: ChatDetailResponse, base?: ChatItem): ChatItem {
+    const lastWithModel = [...(chat.history || [])]
+      .reverse()
+      .find((message) => !!message?.model?.trim());
+    const provider = this.toAiProvider(lastWithModel?.provider || base?.provider);
+    const fallbackModel = provider === 'ollama' ? 'llama3.2:1b' : 'gemini-2.5-flash';
+
+    return {
+      id: chat.id ?? base?.id ?? null,
+      titulo: chat.title || base?.titulo || 'Nuevo chat',
+      favorito: base?.favorito ?? false,
+      provider,
+      model: lastWithModel?.model || base?.model || fallbackModel,
+      historial: (chat.history || []).map((message) => ({
+        role: message.role === 'user' ? 'user' : 'bot',
+        text: message.content,
+      })),
+    };
+  }
+
+   private async loadChatsByUser() {
+     this.isLoadingChats = true;
+     try {
+       // Obtener el username actual de la sesión
+       const currentUser = this.sessionService.getUser();
+       const username = currentUser?.username || this.currentUsername;
+
+       console.log('🔍 DEBUG - loadChatsByUser():');
+       console.log('  - currentUser:', currentUser);
+       console.log('  - username para buscar:', username);
+       console.log('  - this.currentUsername:', this.currentUsername);
+
+       if (!username || username === 'demo') {
+         console.warn('⚠️ Username no válido para cargar chats:', username);
+         this.misChats = [];
+         return;
+       }
+
+       console.log('📥 Cargando chats para usuario:', username);
+       const chats = await firstValueFrom(this.chatApiService.listChats(username));
+       console.log('✅ Respuesta del servidor:', chats);
+
+       this.misChats = chats.map((chat) => this.mapChatSummary(chat));
+       console.log('✅ Chats mapeados:', this.misChats);
+       console.log('✅ Chats cargados:', this.misChats.length);
+       void this.preloadChatsDetails(this.misChats.slice(0, 6));
+     } catch (error) {
+       console.error('❌ Error cargando chats:', error);
+       this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');
+       this.misChats = [];
+     } finally {
+       this.isLoadingChats = false;
+       this.cdr.detectChanges();
+     }
+   }
+
+  private async loadSharedPrompts() {
+    this.isLoadingSharedPrompts = true;
+    try {
+      this.sharedPrompts = await firstValueFrom(this.chatApiService.listSharedPrompts());
+    } catch {
+      this.sharedPrompts = [];
+    } finally {
+      this.isLoadingSharedPrompts = false;
+      this.cdr.detectChanges();
+    }
+   }
+
+   openShareModal(scope: ShareScope = 'chat', message?: ChatMessage) {
+    this.shareStatusMessage = '';
+    this.shareResultUrl = '';
+    this.shareRecipient = '';
+    this.shareScope = 'chat';
+    this.shareDraftTitle = this.activeChat?.titulo || 'Nuevo chat';
+    this.shareDraftText = this.buildChatShareText();
+
+    this.isShareModalOpen = true;
+    this.cdr.detectChanges();
+  }
+
+  closeShareModal() {
+    this.isShareModalOpen = false;
+    this.isSharingPrompt = false;
+    this.shareRecipient = '';
+    this.shareScope = 'prompt';
+    this.shareDraftText = '';
+    this.shareDraftTitle = '';
+    this.shareStatusMessage = '';
+  }
+
+  onShareScopeChange(scope: ShareScope) {
+    this.shareScope = scope;
+
+    if (scope === 'chat') {
+      this.shareDraftText = this.buildChatShareText();
+    } else if (scope === 'custom' && !this.shareDraftText.trim()) {
+      this.shareDraftText = '';
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  private buildChatShareText(): string {
+    const title = this.activeChat?.titulo?.trim() || 'Nuevo chat';
+    const messages = this.messages
+      .filter((message) => !message.isFile)
+      .slice(-8)
+      .map((message) => `${message.role === 'user' ? 'Usuario' : 'MentorCore'}: ${message.text}`)
+      .join('\n\n');
+
+    return [`Chat: ${title}`, messages ? `\n${messages}` : '', '\n— Compartido desde MentorCore'].join('');
+  }
+
+  private buildChatShareHistory() {
+    return this.messages
+      .filter((message) => !message.isFile)
+      .map((message) => ({
+        role: (message.role === 'user' ? 'user' : 'bot') as 'user' | 'bot',
+        provider: this.selectedProvider,
+        model: this.selectedModel,
+        content: message.text,
+      }));
+  }
+
+  private buildSharePayload(): {
+    to_user?: string | null;
+    prompt: string;
+    source_chat_id?: string | null;
+    source_chat_title?: string | null;
+    source_history?: Array<{ role: 'user' | 'bot'; provider: string; model: string; content: string }>;
+  } {
+    const prompt = this.buildChatShareText();
+
+    return {
+      to_user: null,
+      prompt,
+      source_chat_id: this.activeChat?.id,
+      source_chat_title: this.activeChat?.titulo,
+      source_history: this.buildChatShareHistory(),
+    };
+  }
+
+  submitShare() {
+    if (this.isSharingPrompt) return;
+
+    const payload = this.buildSharePayload();
+    if (!payload.prompt.trim()) {
+      this.shareStatusMessage = 'El contenido a compartir no puede ir vacío.';
+      return;
+    }
+
+    this.isSharingPrompt = true;
+    this.shareStatusMessage = '';
+
+    this.chatApiService.sharePrompt(payload).subscribe({
+      next: (result) => {
+        this.shareResultUrl = `${globalThis.location?.origin || ''}${result.share_url}`;
+        this.shareStatusMessage = result.source_history_count && result.source_history_count > 1
+          ? 'Enlace generado para compartir chat completo.'
+          : 'Enlace generado para compartir.';
+        this.setMicStatus('Enlace de chat generado correctamente.', 'success');
+        void this.loadSharedPrompts();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.shareStatusMessage = 'No se pudo compartir. Revisa el usuario destino.';
+        this.isSharingPrompt = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  async copyShareLink() {
+    if (!this.shareResultUrl) return;
+    try {
+      await globalThis.navigator?.clipboard?.writeText(this.shareResultUrl);
+      this.shareStatusMessage = 'Enlace copiado al portapapeles.';
+      this.cdr.detectChanges();
+    } catch {
+      this.shareStatusMessage = 'No se pudo copiar el enlace, selecciónalo manualmente.';
+      this.cdr.detectChanges();
+    }
+  }
+
+  useSharedPrompt(shared: SharedPromptResponse) {
+    const prompt = shared.prompt?.trim();
+    if (!prompt) return;
+    this.userInput = prompt;
+    this.closeSidebarOnMobile();
+    this.cdr.detectChanges();
+  }
+
+  private async loadChatById(chatId: string) {
+    try {
+      const detail = await firstValueFrom(this.chatApiService.getChat(chatId));
+      const mapped = this.mapChatDetail(detail);
+      this.activeChat = mapped;
+      this.selectedProvider = mapped.provider;
+      this.selectedModel = mapped.model;
+      this.messages = mapped.historial.map((message) =>
+        message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
+      );
+      this.cdr.detectChanges();
+      this.scrollToBottom();
+    } catch {
+      this.setMicStatus('No se pudo abrir el chat compartido.', 'error');
+    }
+  }
+
+  private upsertChat(chat: ChatItem) {
+    const idx = this.misChats.findIndex((item) => item.id && item.id === chat.id);
+    if (idx === -1) {
+      this.misChats.unshift(chat);
+      return;
+    }
+    this.misChats[idx] = chat;
+    if (chat.id) {
+      this.chatCache.set(chat.id, chat);
+    }
+  }
+
+  private async preloadChatsDetails(chats: ChatItem[]) {
+    const tasks = chats
+      .filter((chat) => !!chat.id)
+      .map(async (chat) => {
+        if (!chat.id || this.chatCache.has(chat.id)) return;
+        try {
+          const detail = await firstValueFrom(this.chatApiService.getChat(chat.id));
+          const mapped = this.mapChatDetail(detail, chat);
+          this.chatCache.set(chat.id, mapped);
+        } catch {
+          // precarga silenciosa
+        }
+      });
+
+    await Promise.allSettled(tasks);
   }
 
   get currentModelPlaceholder(): string {
@@ -158,6 +524,59 @@ export class ChatComponent implements OnInit {
     });
   }
 
+  get promptUnifiedList(): PromptListItem[] {
+    const search = this.searchTerm.toLowerCase();
+
+    const ownChats = this.misChats
+      .filter((chat) => {
+        const coincideBusqueda =
+          chat.titulo.toLowerCase().includes(search) ||
+          chat.historial.some((m) => m.text.toLowerCase().includes(search));
+        return coincideBusqueda;
+      })
+      .map<PromptListItem>((chat) => ({
+        kind: 'own',
+        title: chat.titulo,
+        subtitle: chat.favorito ? 'Favorito' : 'Prompt propio',
+        preview: chat.historial
+          .filter((m) => m.role === 'user')
+          .slice(-1)[0]?.text || 'Sin contenido disponible',
+        favorite: chat.favorito,
+        chat,
+      }));
+
+    const shared = this.sharedPrompts
+      .filter((item) => {
+        const coincideBusqueda =
+          item.prompt.toLowerCase().includes(search) ||
+          item.from_user.toLowerCase().includes(search) ||
+          (item.source_chat_title || '').toLowerCase().includes(search);
+        return coincideBusqueda;
+      })
+      .map<PromptListItem>((item) => ({
+        kind: 'shared',
+        title: item.source_chat_title || `Compartido por @${item.from_user}`,
+        subtitle: `Compartido por @${item.from_user}`,
+        preview: item.prompt,
+        sharedFrom: item.from_user,
+        sharedPrompt: item,
+      }));
+
+    return [...ownChats, ...shared].slice(0, 12);
+  }
+
+  openPromptItem(item: PromptListItem) {
+    if (item.kind === 'own' && item.chat) {
+      this.cargarChat(item.chat);
+      this.closeSidebarOnMobile();
+      return;
+    }
+
+    if (item.kind === 'shared' && item.sharedPrompt) {
+      this.useSharedPrompt(item.sharedPrompt);
+    }
+  }
+
   // ======================= MÉTODOS RESPONSIVE =======================
   toggleSidebar() {
     this.mobileSidebarOpen = !this.mobileSidebarOpen;
@@ -174,8 +593,9 @@ export class ChatComponent implements OnInit {
   }
 
   toggleDarkMode() {
-    this.isDarkMode = !this.isDarkMode;
-    globalThis.localStorage?.setItem('chat-theme', this.isDarkMode ? 'dark' : 'light');
+    const nextPreference: ThemePreference = this.isDarkMode ? 'light' : 'dark';
+    this.applyThemePreference(nextPreference);
+    void this.persistThemePreference(nextPreference);
   }
 
   toggleUserMenu(event?: Event) {
@@ -188,6 +608,9 @@ export class ChatComponent implements OnInit {
   }
 
   onUserMenuAction(action: 'profile' | 'settings' | 'theme' | 'logout') {
+    if (action === 'profile') {
+      void this.router.navigate(['/profile']);
+    }
     if (action === 'theme') {
       this.toggleDarkMode();
     }
@@ -198,6 +621,10 @@ export class ChatComponent implements OnInit {
   }
 
   logout() {
+    if (this.profileImageObjectUrl) {
+      URL.revokeObjectURL(this.profileImageObjectUrl);
+      this.profileImageObjectUrl = null;
+    }
     this.sessionService.clearSession();
     void this.router.navigate(['/login']);
   }
@@ -216,6 +643,14 @@ export class ChatComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscapePress() {
+    if (this.isShareModalOpen) {
+      this.closeShareModal();
+      return;
+    }
+    if (this.chatModalMode) {
+      this.closeChatModal();
+      return;
+    }
     this.closeUserMenu();
     this.providerDropdownOpen = false;
     this.modelDropdownOpen = false;
@@ -272,17 +707,56 @@ export class ChatComponent implements OnInit {
     }
   }
 
-  cargarChat(chat: ChatItem) {
-    console.log('Cargando chat:', chat.titulo);
+  async cargarChat(chat: ChatItem) {
+    if (!chat.id) {
+      this.activeChat = chat;
+      this.selectedProvider = chat.provider;
+      this.selectedModel = chat.model;
+      return;
+    }
+
+    const cached = this.chatCache.get(chat.id);
+    if (cached) {
+      this.activeChat = cached;
+      this.selectedProvider = cached.provider;
+      this.selectedModel = cached.model;
+      this.messages = cached.historial.map((message) =>
+        message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
+      );
+      this.closeSidebarOnMobile();
+      this.scrollToBottom();
+      return;
+    }
+
+    this.isChatLoading = true;
     this.activeChat = chat;
-    this.messages = chat.historial.map((message) =>
-      message.role === 'bot'
-        ? { ...message, html: this.formatBotContent(message.text) }
-        : message,
-    );
-    chat.historial = this.messages;
     this.selectedProvider = chat.provider;
     this.selectedModel = chat.model;
+    this.messages = [
+      { role: 'bot', text: 'Cargando conversación...' },
+    ];
+    this.scrollToBottom();
+
+    try {
+      const detail = await firstValueFrom(this.chatApiService.getChat(chat.id));
+      const updated = this.mapChatDetail(detail, chat);
+      this.upsertChat(updated);
+      this.activeChat = updated;
+      this.messages = updated.historial.map((message) =>
+        message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
+      );
+      this.selectedProvider = updated.provider;
+      this.selectedModel = updated.model;
+    } catch {
+      this.setMicStatus('No se pudo cargar el detalle del chat seleccionado.', 'error');
+      this.messages = [];
+    } finally {
+      this.isChatLoading = false;
+      if (this.activeChat?.id) {
+        this.chatCache.set(this.activeChat.id, this.activeChat);
+      }
+    }
+
     this.scrollToBottom();
     this.closeSidebarOnMobile();
   }
@@ -298,9 +772,100 @@ export class ChatComponent implements OnInit {
     this.activeChat = null;
     this.selectedProvider = 'gemini';
     this.selectedModel = this.currentModelPlaceholder;
+    this.isChatLoading = false;
+    this.closeChatModal();
     this.resetMessageTextareaHeight();
     this.closeSidebarOnMobile();
   }
+
+  openRenameModal(event: Event, chat: ChatItem) {
+    event.stopPropagation();
+    if (!chat.id) return;
+    this.chatModalMode = 'rename';
+    this.chatModalTarget = chat;
+    this.chatModalTitleDraft = chat.titulo;
+  }
+
+  openDeleteModal(event: Event, chat: ChatItem) {
+    event.stopPropagation();
+    if (!chat.id) return;
+    this.chatModalMode = 'delete';
+    this.chatModalTarget = chat;
+    this.chatModalTitleDraft = chat.titulo;
+  }
+
+  closeChatModal() {
+    this.chatModalMode = null;
+    this.chatModalTarget = null;
+    this.chatModalTitleDraft = '';
+    this.isChatModalSubmitting = false;
+  }
+
+  async confirmChatModalAction() {
+    if (!this.chatModalMode || !this.chatModalTarget?.id || this.isChatModalSubmitting) return;
+
+    this.isChatModalSubmitting = true;
+
+    if (this.chatModalMode === 'rename') {
+      await this.confirmRenameChat(this.chatModalTarget);
+      return;
+    }
+
+    await this.confirmDeleteChat(this.chatModalTarget);
+  }
+
+  onChatModalKeydown(event: Event) {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key !== 'Enter') return;
+    keyboardEvent.preventDefault();
+    void this.confirmChatModalAction();
+  }
+
+  private async confirmRenameChat(chat: ChatItem) {
+    const title = this.chatModalTitleDraft.trim();
+    if (!chat.id || !title) {
+      this.closeChatModal();
+      return;
+    }
+
+    try {
+      const updated = await firstValueFrom(this.chatApiService.updateChat(chat.id, { title }));
+      const updatedChat = this.mapChatDetail(updated, chat);
+      this.upsertChat(updatedChat);
+
+      if (this.activeChat?.id === updatedChat.id) {
+        this.activeChat.titulo = updatedChat.titulo;
+      }
+    } catch {
+      this.setMicStatus('No se pudo actualizar el nombre del chat.', 'error');
+    } finally {
+      this.closeChatModal();
+      this.cdr.detectChanges();
+    }
+  }
+
+  private async confirmDeleteChat(chat: ChatItem) {
+    if (!chat.id) {
+      this.closeChatModal();
+      return;
+    }
+
+    try {
+      const deleted = await firstValueFrom(this.chatApiService.deleteChat(chat.id));
+      if (!deleted.deleted) return;
+
+      this.misChats = this.misChats.filter((item) => item.id !== chat.id);
+      if (this.activeChat?.id === chat.id) {
+        this.resetChat();
+      }
+    } catch {
+      this.setMicStatus('No se pudo eliminar el chat.', 'error');
+    } finally {
+      this.closeChatModal();
+      this.cdr.detectChanges();
+    }
+  }
+
 
   onMessageEnter(event: Event) {
     const keyboardEvent = event as KeyboardEvent;
@@ -759,11 +1324,46 @@ export class ChatComponent implements OnInit {
     }
   }
 
-  ngOnInit() {
-    // Cargar tema oscuro si estaba guardado
-    if (this.isDarkMode) {
-      document.documentElement.classList.add('dark');
+   ngOnInit() {
+     this.onProviderChange();
+
+     // Actualizar currentUsername con el usuario de sesión
+     const currentUser = this.sessionService.getUser();
+     if (currentUser?.username) {
+       this.currentUsername = currentUser.username;
+     }
+
+     void this.loadChatsByUser();
+     void this.loadSharedPrompts();
+     this.loadProfileImageFromSession();
+
+     const chatIdFromRoute = this.route.snapshot.queryParamMap.get('chatId');
+     if (chatIdFromRoute) {
+       void this.loadChatById(chatIdFromRoute);
+     }
+
+     this.sessionSubscription = this.sessionService.session$.subscribe((session) => {
+       this.loadProfileImageFromSession();
+       // Recargar chats cuando cambia la sesión
+       if (session) {
+         void this.loadChatsByUser();
+       }
+     });
+   }
+
+  ngOnDestroy() {
+    if (this.sessionSubscription) {
+      this.sessionSubscription.unsubscribe();
+      this.sessionSubscription = null;
     }
-    this.onProviderChange();
+
+    if (this.profileImageObjectUrl) {
+      URL.revokeObjectURL(this.profileImageObjectUrl);
+      this.profileImageObjectUrl = null;
+    }
+  }
+
+  get sharePreviewText(): string {
+    return this.buildChatShareText();
   }
 }

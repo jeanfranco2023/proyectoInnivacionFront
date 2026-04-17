@@ -7,9 +7,10 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>
-    var global = global || window;
-    var exports = exports || {};
-    var module = module || { exports: {} };
+    // Compatibilidad para librerías que esperan globals de entorno Node.
+    window.global = window.global || window;
+    window.exports = window.exports || {};
+    window.module = window.module || { exports: {} };
   </script>
 </head>
 <body>

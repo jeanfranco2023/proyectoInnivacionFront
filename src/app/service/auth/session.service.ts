@@ -37,6 +37,12 @@ export class SessionService {
     this.sessionSubject.next(null);
   }
 
+  updateUser(user: AuthUser) {
+    const current = this.getValidSession();
+    if (!current) return;
+    this.setSession({ ...current, user });
+  }
+
   private getValidSession(): AuthSession | null {
     const current = this.sessionSubject.value ?? this.readSession();
     if (!current) return null;

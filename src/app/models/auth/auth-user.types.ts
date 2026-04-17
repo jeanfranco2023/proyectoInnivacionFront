@@ -3,6 +3,9 @@ export interface AuthUser {
   display_name: string;
   career: string;
   roles: string[];
+  theme_preference?: 'system' | 'light' | 'dark';
+  is_dark?: boolean;
+  profile_image_url?: string | null;
 }
 
 export interface AuthSession {
@@ -10,4 +13,3 @@ export interface AuthSession {
   user: AuthUser;
   expiresAt: number;
 }
-
