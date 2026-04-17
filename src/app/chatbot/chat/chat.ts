@@ -622,9 +622,26 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.isUserMenuOpen = false;
   }
 
+  private async navigateSafely(url: string) {
+    try {
+      const navigated = await this.router.navigateByUrl(url);
+      if (!navigated) {
+        globalThis.location?.assign(url);
+      }
+    } catch {
+      // Fallback para navegadores/extensiones que interceptan history.pushState.
+      globalThis.location?.assign(url);
+    }
+  }
+
   onUserMenuAction(action: 'profile' | 'settings' | 'theme' | 'logout') {
     if (action === 'profile') {
-      void this.router.navigate(['/profile']);
+      void this.navigateSafely('/profile');
+      this.closeSidebarOnMobile();
+    }
+    if (action === 'settings') {
+      void this.navigateSafely('/profile');
+      this.closeSidebarOnMobile();
     }
     if (action === 'theme') {
       this.toggleDarkMode();
@@ -641,7 +658,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.profileImageObjectUrl = null;
     }
     this.sessionService.clearSession();
-    void this.router.navigate(['/login']);
+    void this.navigateSafely('/login');
   }
 
   @HostListener('document:click')

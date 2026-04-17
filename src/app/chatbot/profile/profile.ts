@@ -1,6 +1,6 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 
 import { AuthUser } from '../../models/auth/auth-user.types';
 import { AuthApiService } from '../../service/auth/auth-api.service';
@@ -9,7 +9,7 @@ import { SessionService } from '../../service/auth/session.service';
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe],
+  imports: [CommonModule, DatePipe],
   templateUrl: './profile.html',
 })
 export class ProfileComponent implements OnInit, OnDestroy {
@@ -24,21 +24,69 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private readonly authApiService: AuthApiService,
     private readonly sessionService: SessionService,
     private readonly router: Router,
-  ) {}
+  ) {
+    this.syncThemePreference();
+  }
+
+  private async navigateSafely(url: string) {
+    try {
+      const navigated = await this.router.navigateByUrl(url);
+      if (!navigated) {
+        globalThis.location?.assign(url);
+      }
+    } catch {
+      globalThis.location?.assign(url);
+    }
+  }
+
+  goToChat() {
+    void this.navigateSafely('/chat');
+  }
+
+  private getSystemThemePreference(): 'light' | 'dark' {
+    return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  private normalizeThemePreference(preference?: string | null): 'light' | 'dark' {
+    if (preference === 'dark' || preference === 'light') return preference;
+    return this.getSystemThemePreference();
+  }
+
+  private syncThemePreference() {
+    const currentUser = this.sessionService.getUser();
+    const storedTheme = globalThis.localStorage?.getItem('chat-theme');
+    const serverTheme =
+      currentUser?.is_dark === true ? 'dark' : currentUser?.is_dark === false ? 'light' : null;
+    const initialTheme: 'light' | 'dark' =
+      storedTheme === 'dark' || storedTheme === 'light'
+        ? storedTheme
+        : serverTheme || this.normalizeThemePreference(currentUser?.theme_preference);
+
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+  }
 
   ngOnInit() {
     if (!this.sessionService.isAuthenticated()) {
-      void this.router.navigate(['/login']);
+      void this.navigateSafely('/login');
       return;
     }
 
     this.user = this.sessionService.getUser();
     this.sessionExpiry = this.sessionService.session?.expiresAt ?? null;
     this.refreshProfileImageFromServer();
+
+    // Asegurar que el tema se aplique nuevamente en caso de cambios externos
+    const storedTheme = globalThis.localStorage?.getItem('chat-theme');
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+    } else {
+      // Si no hay tema guardado, respetar la preferencia del servidor o sistema
+      this.syncThemePreference();
+    }
   }
 
   ngOnDestroy() {
-    if (this.profileImageObjectUrl) {
+    if (this.profileImageObjectUrl && this.profileImageObjectUrl.startsWith('blob:')) {
       URL.revokeObjectURL(this.profileImageObjectUrl);
       this.profileImageObjectUrl = null;
     }
@@ -46,7 +94,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   private refreshProfileImageFromServer() {
     if (!this.user?.profile_image_url) {
-      if (this.profileImageObjectUrl) {
+      if (this.profileImageObjectUrl && this.profileImageObjectUrl.startsWith('blob:')) {
         URL.revokeObjectURL(this.profileImageObjectUrl);
         this.profileImageObjectUrl = null;
       }
