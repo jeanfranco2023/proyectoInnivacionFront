@@ -2,6 +2,29 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
 
+## Docker y CI/CD
+
+Este proyecto incluye una imagen Docker multi-stage y un workflow de GitHub Actions para publicar automáticamente la imagen en GHCR al hacer push a `main`.
+
+### Build local
+
+```bash
+docker build -t proyecto-innovacion-front .
+```
+
+### Run local
+
+```bash
+docker run --rm -p 8080:8080 proyecto-innovacion-front
+```
+
+### Imagen publicada por GitHub Actions
+
+```text
+ghcr.io/<tu-usuario-o-org>/proyecto-innovacion-front:latest
+ghcr.io/<tu-usuario-o-org>/proyecto-innovacion-front:<sha>
+```
+
 ## Development server
 
 To start a local development server, run:
@@ -33,6 +56,8 @@ To build the project run:
 ```bash
 ng build
 ```
+
+The production build output is served from `dist/proyectoInnovacion/browser` in the Docker image.
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 

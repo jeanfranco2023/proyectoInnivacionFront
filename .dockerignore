@@ -1,0 +1,15 @@
+node_modules
+dist
+.angular
+.git
+.github
+coverage
+npm-debug.log
+Dockerfile
+docker-compose.yml
+.DS_Store
+*.log
+*.tmp
+*.swp
+Thumbs.db
+
