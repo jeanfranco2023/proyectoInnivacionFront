@@ -44,21 +44,30 @@
       <!-- Sección de Chats Guardados -->
       <div class="space-y-3" *ngIf="!isLoadingChats && misChats.length > 0">
         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">Mis Chats</p>
-        <button *ngFor="let chat of misChats"
-                (click)="cargarChat(chat)"
-                class="group w-full rounded-3xl border border-blue-200 bg-white px-3 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-400/20 dark:hover:bg-white/10">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ chat.titulo }}</p>
-              <p class="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
-                {{ chat.historial.length }} mensajes
-              </p>
-              <p class="mt-2 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                {{ chat.historial[chat.historial.length - 1]?.text || 'Sin contenido' }}
-              </p>
-            </div>
+        <div *ngFor="let chat of misChats"
+             class="group flex items-center gap-2 rounded-3xl border border-blue-200 bg-white px-2 py-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-400/20 dark:hover:bg-white/10">
+          <button type="button"
+                  (click)="cargarChat(chat)"
+                  class="min-w-0 flex-1 rounded-2xl px-2 py-2 text-left">
+            <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{{ chat.titulo }}</p>
+          </button>
+          <div class="flex items-center gap-1 pr-1">
+            <button type="button"
+                    (click)="openRenameModal($event, chat)"
+                    class="rounded-xl p-2 text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                    title="Editar nombre"
+                    aria-label="Editar nombre">
+              <i class="fa-regular fa-pen-to-square text-xs"></i>
+            </button>
+            <button type="button"
+                    (click)="openDeleteModal($event, chat)"
+                    class="rounded-xl p-2 text-red-500 transition hover:bg-red-50 hover:text-red-600 dark:text-red-300 dark:hover:bg-red-500/10"
+                    title="Eliminar chat"
+                    aria-label="Eliminar chat">
+              <i class="fa-regular fa-trash-can text-xs"></i>
+            </button>
           </div>
-        </button>
+        </div>
       </div>
 
       <!-- Sección de Prompts - OCULTA -->
@@ -231,7 +240,7 @@
                     class="rounded-full p-2 text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
               <i [class]="isListening ? 'fa-solid fa-microphone-slash animate-pulse' : 'fa-solid fa-microphone'"></i>
             </button>
-            <button (click)="sendMessage()" (keydown.enter)="sendMessage()" (keydown.space)="sendMessage()" [disabled]="isSending" title="Enviar mensaje"
+            <button (click)="sendMessage()" [disabled]="isSending" title="Enviar mensaje"
                     class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-950 text-white shadow-md shadow-blue-950/20 transition active:scale-95 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-sky-500 dark:text-white dark:hover:bg-sky-400">
               <i class="fa-solid fa-arrow-up text-xs sm:text-sm"></i>
             </button>

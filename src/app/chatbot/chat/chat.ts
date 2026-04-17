@@ -1,7 +1,8 @@
 import { Component, ChangeDetectorRef, HostListener, OnDestroy, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom, Subscription } from 'rxjs';
+import { distinctUntilChanged, firstValueFrom, map, Subscription } from 'rxjs';
 import { marked } from 'marked';
 
 import { ChatApiService } from '../../service/chat/chat-api.service';
@@ -97,6 +98,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   profileImageUrl: string | null = null;
   private profileImageObjectUrl: string | null = null;
   private sessionSubscription: Subscription | null = null;
+  private lastLoadedChatsUser: string | null = null;
+  private loadingChatId: string | null = null;
   @ViewChild('messageTextarea') messageTextarea?: ElementRef<HTMLTextAreaElement>;
 
   readonly providerOptions: { value: AiProvider; label: string }[] = [
@@ -236,41 +239,49 @@ export class ChatComponent implements OnInit, OnDestroy {
     };
   }
 
-   private async loadChatsByUser() {
-     this.isLoadingChats = true;
-     try {
-       // Obtener el username actual de la sesión
-       const currentUser = this.sessionService.getUser();
-       const username = currentUser?.username || this.currentUsername;
+  private async loadChatsByUser(force = false) {
+    // Obtener el username actual de la sesión
+    const currentUser = this.sessionService.getUser();
+    const username = currentUser?.username || this.currentUsername;
 
-       console.log('🔍 DEBUG - loadChatsByUser():');
-       console.log('  - currentUser:', currentUser);
-       console.log('  - username para buscar:', username);
-       console.log('  - this.currentUsername:', this.currentUsername);
+    console.log('🔍 DEBUG - loadChatsByUser():');
+    console.log('  - currentUser:', currentUser);
+    console.log('  - username para buscar:', username);
+    console.log('  - this.currentUsername:', this.currentUsername);
 
-       if (!username || username === 'demo') {
-         console.warn('⚠️ Username no válido para cargar chats:', username);
-         this.misChats = [];
-         return;
-       }
+    if (!username || username === 'demo') {
+      console.warn('⚠️ Username no válido para cargar chats:', username);
+      this.misChats = [];
+      this.lastLoadedChatsUser = null;
+      return;
+    }
 
-       console.log('📥 Cargando chats para usuario:', username);
-       const chats = await firstValueFrom(this.chatApiService.listChats(username));
-       console.log('✅ Respuesta del servidor:', chats);
+    if (!force && (this.isLoadingChats || this.lastLoadedChatsUser === username)) {
+      return;
+    }
 
-       this.misChats = chats.map((chat) => this.mapChatSummary(chat));
-       console.log('✅ Chats mapeados:', this.misChats);
-       console.log('✅ Chats cargados:', this.misChats.length);
-       void this.preloadChatsDetails(this.misChats.slice(0, 6));
-     } catch (error) {
-       console.error('❌ Error cargando chats:', error);
-       this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');
-       this.misChats = [];
-     } finally {
-       this.isLoadingChats = false;
-       this.cdr.detectChanges();
-     }
-   }
+    this.isLoadingChats = true;
+    this.lastLoadedChatsUser = username;
+
+    try {
+      console.log('📥 Cargando chats para usuario:', username);
+      const chats = await firstValueFrom(this.chatApiService.listChats(username));
+      console.log('✅ Respuesta del servidor:', chats);
+
+      this.misChats = chats.map((chat) => this.mapChatSummary(chat));
+      console.log('✅ Chats mapeados:', this.misChats);
+      console.log('✅ Chats cargados:', this.misChats.length);
+      void this.preloadChatsDetails(this.misChats.slice(0, 6));
+    } catch (error) {
+      console.error('❌ Error cargando chats:', error);
+      this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');
+      this.misChats = [];
+      this.lastLoadedChatsUser = null;
+    } finally {
+      this.isLoadingChats = false;
+      this.cdr.detectChanges();
+    }
+  }
 
   private async loadSharedPrompts() {
     this.isLoadingSharedPrompts = true;
@@ -686,25 +697,67 @@ export class ChatComponent implements OnInit, OnDestroy {
       const activeModel = this.selectedModel.trim() || this.currentModelPlaceholder;
       this.selectedModel = activeModel;
 
-      const botReply = this.activeChat?.id
-        ? await this.sendMessageToExistingChat(this.activeChat.id, promptActual, activeModel)
-        : await this.startChatInBackend(promptActual, activeModel);
+      let botReply: string;
+      if (this.activeChat?.id) {
+        const previousChatId = this.activeChat.id;
+        try {
+          botReply = await this.sendMessageToExistingChat(previousChatId, promptActual, activeModel);
+        } catch (error) {
+          if (!this.isRetryableGatewayError(error)) {
+            throw error;
+          }
+
+          this.chatCache.delete(previousChatId);
+          this.activeChat.id = null;
+          this.setMicStatus(
+            'El servidor no pudo continuar este chat. Reintentando en una nueva conversación...',
+            'info',
+          );
+          botReply = await this.startChatInBackend(promptActual, activeModel);
+        }
+      } else {
+        botReply = await this.startChatInBackend(promptActual, activeModel);
+      }
 
       this.addBotMessage(botReply);
 
       if (shouldReplyWithAudio) {
         this.speakBotReply(botReply);
       }
-    } catch {
-      this.addBotMessage(
-        'No pude obtener respuesta del backend. Verifica que el API este corriendo y la URL en environments.',
-      );
+    } catch (error) {
+      this.addBotMessage(this.buildSendErrorMessage(error));
       this.setMicStatus('Error al conectar con el backend de chat.', 'error');
     } finally {
       this.isSending = false;
       this.cdr.detectChanges();
       this.scrollToBottom();
     }
+  }
+
+  private isRetryableGatewayError(error: unknown): boolean {
+    return (
+      error instanceof HttpErrorResponse &&
+      (error.status === 500 || error.status === 502 || error.status === 503 || error.status === 504)
+    );
+  }
+
+  private buildSendErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 502 || error.status === 503 || error.status === 504) {
+        return 'El servicio de IA no esta disponible temporalmente (502/503/504). Intenta de nuevo en unos segundos.';
+      }
+      if (error.status === 404) {
+        return 'Este chat ya no existe en el servidor. Crea un nuevo chat y vuelve a intentar.';
+      }
+      if (error.status === 422) {
+        return 'El servidor rechazo el mensaje por validacion. Revisa modelo/agente e intenta nuevamente.';
+      }
+      if (error.status === 0) {
+        return 'No hay conexion con el backend. Verifica internet o CORS del servidor.';
+      }
+    }
+
+    return 'No pude obtener respuesta del backend. Verifica que el API este activo y la URL en enviroment.ts.';
   }
 
   async cargarChat(chat: ChatItem) {
@@ -728,6 +781,11 @@ export class ChatComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.loadingChatId === chat.id) {
+      return;
+    }
+
+    this.loadingChatId = chat.id;
     this.isChatLoading = true;
     this.activeChat = chat;
     this.selectedProvider = chat.provider;
@@ -752,6 +810,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.messages = [];
     } finally {
       this.isChatLoading = false;
+      this.loadingChatId = null;
       if (this.activeChat?.id) {
         this.chatCache.set(this.activeChat.id, this.activeChat);
       }
@@ -1333,22 +1392,29 @@ export class ChatComponent implements OnInit, OnDestroy {
        this.currentUsername = currentUser.username;
      }
 
-     void this.loadChatsByUser();
      void this.loadSharedPrompts();
-     this.loadProfileImageFromSession();
 
      const chatIdFromRoute = this.route.snapshot.queryParamMap.get('chatId');
      if (chatIdFromRoute) {
        void this.loadChatById(chatIdFromRoute);
      }
 
-     this.sessionSubscription = this.sessionService.session$.subscribe((session) => {
+      this.sessionSubscription = this.sessionService.session$
+        .pipe(
+          map((session) => session?.user?.username ?? null),
+          distinctUntilChanged(),
+        )
+        .subscribe((username) => {
        this.loadProfileImageFromSession();
-       // Recargar chats cuando cambia la sesión
-       if (session) {
-         void this.loadChatsByUser();
+        // Recargar chats solo cuando cambia el usuario autenticado
+        if (username) {
+          this.currentUsername = username;
+          void this.loadChatsByUser();
+          return;
        }
-     });
+        this.misChats = [];
+        this.lastLoadedChatsUser = null;
+      });
    }
 
   ngOnDestroy() {
