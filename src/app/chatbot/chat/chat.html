@@ -1,4 +1,4 @@
-<div class="mc-page-enter flex h-screen w-full overflow-hidden bg-blue-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+<div class="mc-page-enter flex h-screen w-full overflow-hidden bg-blue-50 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
 
   <!-- SIDEBAR RESPONSIVE -->
   <aside
@@ -22,18 +22,18 @@
     </div>
 
     <button (click)="resetChat(); closeSidebarOnMobile()"
-            class="mc-button mb-5 inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-blue-300/40 transition-all hover:bg-blue-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-100 dark:shadow-sky-950/20 dark:hover:border-sky-300/30 dark:hover:bg-sky-400/15">
-      <span class="text-base">+</span>
+            class="mb-5 inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-blue-300/40 transition-all hover:bg-blue-700 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-100 dark:shadow-sky-950/20 dark:hover:border-sky-300/30 dark:hover:bg-sky-400/15">
+      <i class="fa-solid fa-plus text-xs"></i>
       Nuevo chat
     </button>
 
     <div class="mb-5">
       <label for="chat-search" class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Buscar conversaciones</label>
       <input id="chat-search" type="text" placeholder="Escribe para filtrar..." [(ngModel)]="searchTerm"
-             class="mc-input w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 transition focus:border-blue-300 focus:ring-2 focus:ring-blue-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400/30 dark:focus:bg-white/10 dark:focus:ring-sky-400/15">
+             class="w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 transition focus:border-blue-300 focus:ring-2 focus:ring-blue-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400/30 dark:focus:bg-white/10 dark:focus:ring-sky-400/15">
     </div>
 
-    <div class="flex-1 overflow-y-auto pr-1 space-y-6">
+    <div #chatListContainer class="chat-list-scroll flex-1 space-y-6 overflow-y-auto pr-1">
       <div *ngIf="isLoadingChats" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
         Cargando chats...
       </div>
@@ -43,9 +43,9 @@
 
       <!-- Sección de Chats Guardados -->
       <div class="space-y-3" *ngIf="!isLoadingChats && misChats.length > 0">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500">Mis Chats</p>
+        <p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-500"><i class="fa-regular fa-folder-open text-xs"></i> Mis Chats</p>
         <div *ngFor="let chat of misChats"
-             class="group flex items-center gap-2 rounded-3xl border border-blue-200 bg-white px-2 py-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-400/20 dark:hover:bg-white/10">
+             class="chat-item-card group flex items-center gap-2 rounded-3xl bg-white px-2 py-2 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-50 dark:bg-white/5 dark:hover:bg-white/10">
           <button type="button"
                   (click)="cargarChat(chat)"
                   class="min-w-0 flex-1 rounded-2xl px-2 py-2 text-left">
@@ -90,18 +90,18 @@
         </div>
         <span class="text-xs text-slate-500 transition-transform" [class.rotate-90]="isUserMenuOpen">❯</span>
       </button>
-      <div *ngIf="isUserMenuOpen" class="mc-message-in mt-2 overflow-hidden rounded-2xl border border-blue-200 bg-white backdrop-blur-md dark:border-white/10 dark:bg-slate-950/40">
+      <div *ngIf="isUserMenuOpen" class="mc-message-in mt-2 overflow-hidden rounded-2xl border border-blue-200 bg-white backdrop-blur-md transition-all duration-200 dark:border-white/10 dark:bg-slate-950/40">
         <button class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 dark:text-slate-200 dark:hover:bg-white/5" (click)="onUserMenuAction('profile')">
-          <span>👤</span> Perfil
+          <i class="fa-regular fa-user text-xs"></i> Perfil
         </button>
         <button class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 dark:text-slate-200 dark:hover:bg-white/5" (click)="onUserMenuAction('settings')">
-          <span>⚙️</span> Preferencias
+          <i class="fa-solid fa-sliders text-xs"></i> Preferencias
         </button>
         <button class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 dark:text-slate-200 dark:hover:bg-white/5" (click)="onUserMenuAction('theme')">
-          <span>{{ isDarkMode ? '☀️' : '🌙' }}</span> {{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}
+          <i [class]="isDarkMode ? 'fa-regular fa-sun text-xs' : 'fa-regular fa-moon text-xs'"></i> {{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}
         </button>
         <button class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-200 dark:hover:bg-red-500/10" (click)="onUserMenuAction('logout')">
-          <span>⎋</span> Cerrar sesión
+          <i class="fa-solid fa-right-from-bracket text-xs"></i> Cerrar sesión
         </button>
       </div>
     </div>
@@ -128,7 +128,7 @@
       </div>
       <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
         <button type="button" (click)="openShareModal('chat')"
-                class="mc-button rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
+                class="rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
                 title="Compartir chat"
                 aria-label="Compartir chat">
           <i class="fa-solid fa-share-nodes text-sm"></i>
@@ -140,7 +140,7 @@
     </header>
 
     <!-- Mensajes -->
-    <div class="flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
+    <div #chatMessagesContainer class="chat-messages-scroll flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
       <div *ngIf="isChatLoading" class="mb-4 flex items-center gap-3 rounded-3xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 shadow-sm dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100">
         <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-500"></span>
         Cargando conversación...
@@ -158,12 +158,12 @@
         </p>
       </div>
 
-      <div class="mx-auto w-full max-w-5xl space-y-4">
-        <div *ngFor="let m of messages" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in flex w-full">
+      <div class="chat-stream-wrap mx-auto w-full max-w-5xl space-y-4">
+        <div *ngFor="let m of messages" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in flex w-full transition-all duration-200">
           <div [ngClass]="m.role === 'user'
                 ? 'mc-user-bubble rounded-3xl rounded-tr-md border border-blue-500/20 dark:border-sky-300/20'
                 : 'mc-bot-bubble rounded-3xl rounded-tl-md'"
-               class="max-w-[94%] px-4 py-3 text-sm leading-relaxed sm:max-w-[88%] sm:px-5 sm:py-4 sm:text-base">
+               class="chat-bubble max-w-[94%] px-4 py-3 text-sm leading-relaxed sm:max-w-[88%] sm:px-5 sm:py-4 sm:text-base">
             <div *ngIf="m.isFile" class="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/10 p-3">
               <i class="fa-solid fa-file-pdf text-xl sm:text-2xl"></i>
               <div class="min-w-0">
@@ -185,7 +185,7 @@
         <div class="relative inline-block text-left" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
           <button type="button" (click)="toggleProviderDropdown()"
                   class="mc-button inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
-            <span>🤖</span>
+            <i class="fa-solid fa-robot text-xs"></i>
             <span class="max-w-[8rem] truncate font-medium capitalize">{{ selectedProvider }}</span>
             <svg class="h-3 w-3 transition-transform" [class.rotate-180]="providerDropdownOpen" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -204,7 +204,7 @@
         <div class="relative inline-block text-left" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
           <button type="button" (click)="toggleModelDropdown()"
                   class="mc-button inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
-            <span>🧠</span>
+            <i class="fa-solid fa-microchip text-xs"></i>
             <span class="max-w-[11rem] truncate font-medium">{{ selectedModel }}</span>
             <svg class="h-3 w-3 transition-transform" [class.rotate-180]="modelDropdownOpen" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -229,26 +229,28 @@
                     (input)="autoResizeMessage($event)"
                     rows="1"
                     placeholder="Escribe tu pregunta aquí..."
-                    class="min-h-[2.5rem] max-h-[9rem] flex-1 resize-none overflow-hidden bg-transparent py-2 pl-2 pr-2 text-sm leading-6 text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"></textarea>
+                    class="min-h-[2.75rem] max-h-[9rem] flex-1 resize-none overflow-hidden bg-transparent py-2.5 pl-2 pr-2 text-sm leading-6 text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"></textarea>
           <div class="flex items-center gap-1 pr-1" (keydown)="$event.stopPropagation()">
             <input type="file" #fileInput (change)="onFileSelected($event)" class="hidden">
             <button (click)="fileInput.click()" title="Adjuntar archivo"
-                    class="rounded-full p-2 text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
-              <i class="fa-regular fa-paperclip text-base"></i>
+                    class="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+              <i class="fa-solid fa-paperclip text-sm"></i>
             </button>
             <button (click)="dictar()" [class.text-red-500]="isListening" title="Entrada de voz"
-                    class="rounded-full p-2 text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
-              <i [class]="isListening ? 'fa-solid fa-microphone-slash animate-pulse' : 'fa-solid fa-microphone'"></i>
+                    class="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+              <i [class]="isListening ? 'fa-solid fa-stop animate-pulse' : 'fa-solid fa-microphone-lines'"></i>
+            </button>
+            <button *ngIf="isSpeechPlaying" (click)="toggleSpeechPause()"
+                    [title]="isSpeechPaused ? 'Reanudar audio' : 'Pausar audio'"
+                    class="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+              <i [class]="isSpeechPaused ? 'fa-solid fa-circle-play' : 'fa-solid fa-circle-pause'"></i>
             </button>
             <button (click)="sendMessage()" [disabled]="isSending" title="Enviar mensaje"
                     class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-950 text-white shadow-md shadow-blue-950/20 transition active:scale-95 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-sky-500 dark:text-white dark:hover:bg-sky-400">
-              <i class="fa-solid fa-arrow-up text-xs sm:text-sm"></i>
+              <i class="fa-solid fa-paper-plane text-xs sm:text-sm"></i>
             </button>
           </div>
         </div>
-        <div *ngIf="micStatusMessage" role="status" aria-live="polite" tabindex="-1" (keydown)="$event.stopPropagation()"
-             [ngClass]="{'text-red-500': micStatusType === 'error', 'text-emerald-600': micStatusType === 'success', 'text-slate-500': micStatusType === 'info'}"
-             class="mt-2 px-2 text-center text-xs">{{ micStatusMessage }}</div>
         <p class="mt-1 px-2 text-center text-[11px] text-slate-400 dark:text-slate-500">
           MentorCore puede cometer errores. Revisa las respuestas.
         </p>
@@ -296,7 +298,7 @@
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-200">Enlace compartido</p>
           <div class="mt-2 flex flex-wrap items-center gap-2">
             <input [value]="shareResultUrl" readonly class="mc-input min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none dark:border-emerald-900/40 dark:bg-slate-950 dark:text-slate-100" />
-            <button type="button" (click)="copyShareLink()" class="mc-button rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+            <button type="button" (click)="copyShareLink()" class="mc-button rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
               Copiar enlace
             </button>
           </div>

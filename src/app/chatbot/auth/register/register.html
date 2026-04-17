@@ -1,66 +1,91 @@
-<div class="mc-page-enter min-h-screen flex items-center justify-center bg-slate-50 px-4 dark:bg-slate-900">
-  <div class="mc-card w-full max-w-lg rounded-3xl bg-white/95 dark:bg-slate-800/95 border border-slate-200 dark:border-slate-700 shadow-2xl p-8">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="bg-blue-600 rounded-2xl p-3 shadow-lg shadow-blue-200">
-        <img src="/SmileWhite.png" alt="Logo" class="w-8 h-8 object-contain">
+<div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-8 text-slate-100">
+  <div class="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center justify-center">
+    <div class="w-full rounded-[1.75rem] border border-slate-700/60 bg-slate-900/85 p-8 shadow-2xl shadow-slate-950/40 backdrop-blur sm:p-10">
+      <div class="mb-8 text-center">
+        <div class="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">
+          <img src="/SmileWhite.png" alt="MentorCore" class="h-5 w-5 object-contain">
+          MentorCore
+        </div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Crear cuenta</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-400">Regístrate en pocos pasos.</p>
       </div>
-      <div>
-        <p class="text-xs uppercase tracking-[0.3em] text-blue-500 font-semibold">MentorCore</p>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Crear cuenta</h1>
+
+      <form class="space-y-4" (ngSubmit)="register()" autocomplete="off">
+        <div class="space-y-2">
+          <label for="display_name" class="block text-sm font-medium text-slate-300">Nombre visible</label>
+          <div class="relative">
+            <i class="fa-solid fa-id-card pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input id="display_name" type="text" [(ngModel)]="form.display_name" name="display_name" autocomplete="name"
+                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
+                   class="w-full rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10"
+                   placeholder="Tu nombre">
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="username" class="block text-sm font-medium text-slate-300">Usuario</label>
+          <div class="relative">
+            <i class="fa-solid fa-user pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input id="username" type="text" [(ngModel)]="form.username" name="username" autocomplete="username"
+                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
+                   class="w-full rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10"
+                   placeholder="usuario_unico">
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="password" class="block text-sm font-medium text-slate-300">Contraseña</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input id="password" type="password" [(ngModel)]="form.password" name="password" autocomplete="new-password"
+                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
+                   class="w-full rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10"
+                   placeholder="Mínimo 6 caracteres">
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="faculty" class="block text-sm font-medium text-slate-300">Facultad</label>
+          <div class="relative">
+            <i class="fa-solid fa-building-columns pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <select id="faculty" [(ngModel)]="selectedFaculty" name="faculty" (ngModelChange)="onFacultyChange()"
+                    class="w-full appearance-none rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10">
+              <option value="" disabled>Selecciona una facultad</option>
+              <option *ngFor="let faculty of facultyOptions" [value]="faculty">{{ faculty }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="career" class="block text-sm font-medium text-slate-300">Carrera</label>
+          <div class="relative">
+            <i class="fa-solid fa-graduation-cap pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <select id="career" [(ngModel)]="form.career" name="career" [disabled]="!selectedFaculty"
+                    class="w-full appearance-none rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10">
+              <option value="" disabled>{{ selectedFaculty ? 'Selecciona una carrera' : 'Primero selecciona una facultad' }}</option>
+              <option *ngFor="let option of filteredCareerOptions" [value]="option">{{ option }}</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" [disabled]="isLoading"
+                class="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/15 transition hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25 disabled:cursor-not-allowed disabled:opacity-70">
+          {{ isLoading ? 'Registrando...' : 'Registrarme' }}
+        </button>
+
+        <p *ngIf="errorMessage" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {{ errorMessage }}
+        </p>
+
+        <p *ngIf="successMessage" class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          {{ successMessage }}
+        </p>
+      </form>
+
+      <div class="mt-5 text-center text-sm text-slate-400">
+        <a routerLink="/login" class="font-semibold text-sky-300 transition hover:text-sky-200">Ya tengo cuenta</a>
       </div>
     </div>
-
-    <form class="space-y-4" (ngSubmit)="register()">
-      <div>
-        <label for="display_name" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Nombre visible</label>
-        <input id="display_name" type="text" [(ngModel)]="form.display_name" name="display_name"
-          class="mc-input w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-          placeholder="Tu nombre completo">
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label for="username" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Usuario</label>
-          <input id="username" type="text" [(ngModel)]="form.username" name="username"
-            class="mc-input w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-            placeholder="usuario_unico">
-        </div>
-
-        <div>
-          <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Contraseña</label>
-          <input id="password" type="password" [(ngModel)]="form.password" name="password"
-            class="mc-input w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-            placeholder="Mínimo 6 caracteres">
-        </div>
-      </div>
-
-      <div>
-        <label for="career" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Carrera</label>
-        <select id="career" [(ngModel)]="form.career" name="career"
-          class="mc-input w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-slate-900 dark:text-slate-100 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20">
-          <option value="" disabled>Selecciona tu carrera</option>
-          <option *ngFor="let option of careerOptions" [value]="option">{{ option }}</option>
-        </select>
-      </div>
-
-      <button type="submit" [disabled]="isLoading"
-        class="mc-button w-full rounded-2xl bg-blue-600 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
-        {{ isLoading ? 'Registrando...' : 'Registrarme' }}
-      </button>
-
-      <p *ngIf="errorMessage" class="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">
-        {{ errorMessage }}
-      </p>
-
-      <p *ngIf="successMessage" class="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
-        {{ successMessage }}
-      </p>
-    </form>
-
-    <p class="mt-5 text-sm text-slate-500 dark:text-slate-400 text-center">
-      ¿Ya tienes cuenta?
-      <a routerLink="/login" class="text-blue-600 dark:text-blue-300 font-semibold hover:underline">Inicia sesión</a>
-    </p>
   </div>
 </div>
 

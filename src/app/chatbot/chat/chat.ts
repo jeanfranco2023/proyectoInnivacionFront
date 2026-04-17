@@ -50,6 +50,7 @@ interface PromptListItem {
 @Component({
   selector: 'app-chat',
   templateUrl: './chat.html',
+  styleUrl: './chat.css',
   standalone: true,
   imports: [CommonModule, FormsModule],
 })
@@ -66,6 +67,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   themePreference: ThemePreference = 'light';
   micStatusMessage: string = '';
   micStatusType: 'info' | 'error' | 'success' = 'info';
+  isSpeechPlaying: boolean = false;
+  isSpeechPaused: boolean = false;
   isUserMenuOpen: boolean = false;
   isLoadingChats: boolean = false;
   isChatLoading: boolean = false;
@@ -101,6 +104,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   private lastLoadedChatsUser: string | null = null;
   private loadingChatId: string | null = null;
   @ViewChild('messageTextarea') messageTextarea?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('chatMessagesContainer') chatMessagesContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('chatListContainer') chatListContainer?: ElementRef<HTMLDivElement>;
 
   readonly providerOptions: { value: AiProvider; label: string }[] = [
     { value: 'gemini', label: 'Gemini' },
@@ -387,7 +392,6 @@ export class ChatComponent implements OnInit, OnDestroy {
         this.shareStatusMessage = result.source_history_count && result.source_history_count > 1
           ? 'Enlace generado para compartir chat completo.'
           : 'Enlace generado para compartir.';
-        this.setMicStatus('Enlace de chat generado correctamente.', 'success');
         void this.loadSharedPrompts();
         this.cdr.detectChanges();
       },
@@ -670,11 +674,37 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ======================= LÓGICA PRINCIPAL =======================
   private scrollToBottom() {
     setTimeout(() => {
-      const chatContainer = document.querySelector('.overflow-y-auto');
+      const chatContainer = this.chatMessagesContainer?.nativeElement;
       if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
     }, 100);
+  }
+
+  private scrollChatListToBottom() {
+    setTimeout(() => {
+      const listContainer = this.chatListContainer?.nativeElement;
+      if (!listContainer) return;
+      listContainer.scrollTop = listContainer.scrollHeight;
+    }, 80);
+  }
+
+  private moveActiveChatToBottom() {
+    const active = this.activeChat;
+    if (!active) return;
+
+    const index = this.misChats.findIndex((item) => {
+      if (active.id && item.id) return item.id === active.id;
+      return item === active;
+    });
+
+    if (index === -1) {
+      this.misChats.push(active);
+      return;
+    }
+
+    const [chat] = this.misChats.splice(index, 1);
+    this.misChats.push(chat);
   }
 
   async sendMessage() {
@@ -685,6 +715,8 @@ export class ChatComponent implements OnInit, OnDestroy {
     const promptActual = this.userInput.trim();
 
     this.ensureActiveChat(promptActual);
+    this.moveActiveChatToBottom();
+    this.scrollChatListToBottom();
 
     this.messages.push({ role: 'user', text: promptActual });
     this.userInput = '';
@@ -959,7 +991,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     };
 
     this.activeChat = nuevoChat;
-    this.misChats.unshift(nuevoChat);
+    this.misChats.push(nuevoChat);
   }
 
   private async startChatInBackend(firstMessage: string, model: string): Promise<string> {
@@ -1088,6 +1120,65 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  toggleSpeechPause() {
+    const synthesis = globalThis.speechSynthesis;
+    if (!synthesis || !this.activeUtterance || !this.isSpeechPlaying) return;
+
+    if (this.isSpeechPaused) {
+      synthesis.resume();
+      this.isSpeechPaused = false;
+      this.setMicStatus('Audio reanudado.', 'info');
+    } else {
+      synthesis.pause();
+      this.isSpeechPaused = true;
+      this.setMicStatus('Audio en pausa.', 'info');
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  private resetSpeechState() {
+    this.activeUtterance = null;
+    this.isSpeechPlaying = false;
+    this.isSpeechPaused = false;
+  }
+
+  private stopBotSpeech() {
+    const synthesis = globalThis.speechSynthesis;
+    if (synthesis && (synthesis.speaking || synthesis.pending || synthesis.paused)) {
+      synthesis.cancel();
+    }
+    this.resetSpeechState();
+  }
+
+  private toPlainTextForSpeech(markdownText: string): string {
+    const source = (markdownText || '').trim();
+    if (!source) return '';
+
+    try {
+      const rendered = marked.parse(source, { gfm: true, breaks: true }) as string;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rendered, 'text/html');
+      return (doc.body.textContent || '')
+        .replace(/\s+/g, ' ')
+        .replace(/\s([,.;:!?])/g, '$1')
+        .trim();
+    } catch {
+      return source
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+        .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+        .replace(/^\s*[-*+]\s+/gm, '')
+        .replace(/^\s*\d+[.)]\s+/gm, '')
+        .replace(/^\s*>\s?/gm, '')
+        .replace(/[*_~]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  }
+
   private speakBotReply(text: string) {
     const synthesis = globalThis.speechSynthesis;
     if (!synthesis) {
@@ -1095,27 +1186,33 @@ export class ChatComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (synthesis.speaking) {
-      synthesis.cancel();
+    const plainText = this.toPlainTextForSpeech(text);
+    if (!plainText) {
+      this.setMicStatus('No hay texto legible para reproducir en voz.', 'error');
+      return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    this.stopBotSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(plainText);
     utterance.lang = globalThis.navigator?.language || 'es-ES';
     utterance.rate = 1;
     utterance.pitch = 1;
 
     utterance.onstart = () => {
+      this.isSpeechPlaying = true;
+      this.isSpeechPaused = false;
       this.setMicStatus('Respuesta en audio activa.', 'info');
       this.cdr.detectChanges();
     };
 
     utterance.onend = () => {
-      this.activeUtterance = null;
+      this.resetSpeechState();
       this.cdr.detectChanges();
     };
 
     utterance.onerror = () => {
-      this.activeUtterance = null;
+      this.resetSpeechState();
       this.setMicStatus('No se pudo reproducir el audio del bot.', 'error');
       this.cdr.detectChanges();
     };
@@ -1427,6 +1524,8 @@ export class ChatComponent implements OnInit, OnDestroy {
       URL.revokeObjectURL(this.profileImageObjectUrl);
       this.profileImageObjectUrl = null;
     }
+
+    this.stopBotSpeech();
   }
 
   get sharePreviewText(): string {

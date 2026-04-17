@@ -15,13 +15,14 @@ import { SessionService } from '../../../service/auth/session.service';
 })
 export class LoginComponent implements OnInit {
   form: LoginRequest = {
-    username: 'demo',
-    password: 'demo123',
+    username: '',
+    password: '',
   };
 
   isLoading = false;
   errorMessage = '';
   private returnUrl = '/chat';
+  autofillLock = true;
 
   constructor(
     private readonly authLoginApiService: AuthLoginApiService,
@@ -59,6 +60,11 @@ export class LoginComponent implements OnInit {
         this.isLoading = false;
       },
     });
+  }
+
+  unlockAutofill() {
+    if (!this.autofillLock) return;
+    this.autofillLock = false;
   }
 }
 
