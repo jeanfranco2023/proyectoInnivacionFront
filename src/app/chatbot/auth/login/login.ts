@@ -23,6 +23,8 @@ export class LoginComponent implements OnInit {
   errorMessage = '';
   private returnUrl = '/chat';
   autofillLock = true;
+  showPassword = false;
+  fieldErrors: { username?: string; password?: string } = {};
 
   constructor(
     private readonly authLoginApiService: AuthLoginApiService,
@@ -38,7 +40,52 @@ export class LoginComponent implements OnInit {
     }
   }
 
+  private isEmailLike(value: string): boolean {
+    return value.includes('@');
+  }
+
+  private isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private validateForm(): boolean {
+    this.fieldErrors = {};
+    const username = this.form.username.trim();
+    const password = this.form.password;
+
+    if (!username) {
+      this.fieldErrors.username = 'Ingresa tu usuario o correo.';
+    } else if (this.isEmailLike(username) && !this.isValidEmail(username)) {
+      this.fieldErrors.username = 'El correo no tiene un formato valido.';
+    }
+
+    if (!password) {
+      this.fieldErrors.password = 'Ingresa tu contraseña.';
+    } else if (password.length < 6) {
+      this.fieldErrors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    }
+
+    return !this.fieldErrors.username && !this.fieldErrors.password;
+  }
+
+  onUsernameInput() {
+    if (this.fieldErrors.username) this.fieldErrors.username = undefined;
+    if (this.errorMessage) this.errorMessage = '';
+  }
+
+  onPasswordInput() {
+    if (this.fieldErrors.password) this.fieldErrors.password = undefined;
+    if (this.errorMessage) this.errorMessage = '';
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
+  }
+
   login() {
+    if (this.isLoading) return;
+    if (!this.validateForm()) return;
+
     this.isLoading = true;
     this.errorMessage = '';
 
@@ -52,8 +99,11 @@ export class LoginComponent implements OnInit {
         void this.router.navigateByUrl(this.returnUrl);
       },
       error: (error) => {
+        const status = Number(error?.status ?? 0);
         this.errorMessage =
-          error?.error?.error?.message || 'No se pudo iniciar sesión. Revisa tus credenciales.';
+          status === 401 || status === 403
+            ? 'Correo/usuario o contraseña incorrectos.'
+            : error?.error?.error?.message || 'No se pudo iniciar sesión. Revisa tus credenciales.';
         this.isLoading = false;
       },
       complete: () => {
