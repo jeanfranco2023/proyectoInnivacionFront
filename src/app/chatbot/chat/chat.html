@@ -1,4 +1,4 @@
-<div class="mc-page-enter flex min-h-screen h-[100dvh] w-full overflow-hidden bg-blue-50 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
+<div class="mc-page-enter fixed inset-0 flex h-[100dvh] w-full overflow-hidden bg-blue-50 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
 
   <!-- SIDEBAR RESPONSIVE -->
   <aside
@@ -112,8 +112,8 @@
           class="fixed inset-0 z-20 cursor-default bg-blue-950/50 backdrop-blur-sm lg:hidden"></button>
 
   <!-- MAIN CONTENT -->
-  <main class="flex w-full flex-1 flex-col overflow-hidden bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-    <header class="flex h-16 items-center justify-between border-b border-blue-200/80 bg-white/75 px-4 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/70 sm:px-8">
+  <main class="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+    <header class="flex h-16 shrink-0 items-center justify-between border-b border-blue-200/80 bg-white/75 px-4 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/70 sm:px-8">
       <div class="flex items-center gap-3">
         <button (click)="toggleSidebar()" class="text-2xl text-slate-600 transition hover:text-blue-600 lg:hidden">☰</button>
         <div class="flex items-center gap-3">
@@ -140,7 +140,7 @@
     </header>
 
     <!-- Mensajes -->
-    <div #chatMessagesContainer class="chat-messages-scroll flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
+    <div #chatMessagesContainer class="chat-messages-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5">
       <div *ngIf="isChatLoading" class="mb-4 flex items-center gap-3 rounded-3xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 shadow-sm dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100">
         <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-500"></span>
         Cargando conversación...
@@ -179,7 +179,7 @@
     </div>
 
     <!-- Footer con input elegante -->
-    <div class="px-3 pb-4 pt-2 sm:px-4 sm:pb-4">
+    <div class="sticky bottom-0 z-10 shrink-0 bg-gradient-to-t from-blue-100/95 via-blue-100/90 to-blue-100/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-sm dark:from-slate-950/95 dark:via-slate-950/90 dark:to-slate-950/60 sm:px-4 sm:pb-4">
       <div class="mx-auto mb-3 grid w-full max-w-5xl grid-cols-1 items-stretch gap-2 text-[11px] sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:text-xs">
         <!-- Dropdown personalizado para Agente -->
         <div class="relative inline-block w-full text-left sm:w-auto" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
