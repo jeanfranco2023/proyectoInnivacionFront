@@ -389,10 +389,4 @@
   }
 }
 
-@media (max-width: 640px) {
-  .user-dropdown {
-    right: 0.25rem;
-    width: min(220px, calc(100vw - 2.5rem));
-  }
-}
 

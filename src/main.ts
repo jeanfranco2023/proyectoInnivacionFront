@@ -25,12 +25,12 @@ function renderFatalError(message: string) {
   host.appendChild(panel);
 }
 
-window.addEventListener('error', (event) => {
+globalThis.addEventListener('error', (event) => {
   const text = event.error?.stack || event.message || 'Runtime error desconocido.';
   renderFatalError(`Error de ejecucion:\n${text}`);
 });
 
-window.addEventListener('unhandledrejection', (event) => {
+globalThis.addEventListener('unhandledrejection', (event) => {
   const reason = (event.reason && (event.reason.stack || event.reason.message)) || `${event.reason}`;
   renderFatalError(`Promesa no manejada:\n${reason}`);
 });
@@ -38,5 +38,4 @@ window.addEventListener('unhandledrejection', (event) => {
 bootstrapApplication(App, appConfig).catch((err) => {
   const text = err?.stack || err?.message || `${err}`;
   renderFatalError(`Fallo al iniciar Angular:\n${text}`);
-  console.error(err);
 });

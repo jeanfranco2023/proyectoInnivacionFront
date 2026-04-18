@@ -40,8 +40,6 @@ export class ChatApiService {
 
   listChats(userId: string): Observable<ChatSummaryResponse[]> {
     const url = `${this.baseUrl}${this.chatsEndpoint}`;
-    console.log('🔗 HTTP GET:', url);
-    console.log('📊 Params:', { user_id: userId });
 
     return this.http
       .get<ApiEnvelope<ChatSummaryResponse[]> | ChatSummaryResponse[]>(url, {
@@ -53,7 +51,6 @@ export class ChatApiService {
       .pipe(
         map((res) => {
           const data = this.unwrapData<ChatSummaryResponse[]>(res);
-          console.log('📨 Respuesta HTTP recibida:', res);
           return Array.isArray(data) ? data : [];
         })
       );

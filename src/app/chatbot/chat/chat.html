@@ -1,8 +1,8 @@
-<div class="mc-page-enter flex h-screen w-full overflow-hidden bg-blue-50 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
+<div class="mc-page-enter flex min-h-screen h-[100dvh] w-full overflow-hidden bg-blue-50 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
 
   <!-- SIDEBAR RESPONSIVE -->
   <aside
-    class="fixed lg:relative z-30 flex h-full w-80 flex-col border-r border-blue-200 bg-white/95 px-5 py-5 text-slate-700 shadow-2xl shadow-blue-200/40 transition-transform duration-300 ease-in-out transform lg:transform-none lg:translate-x-0 dark:border-slate-800 dark:bg-gradient-to-b dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 dark:shadow-slate-950/30"
+    class="fixed lg:relative z-30 flex h-full w-[85vw] max-w-80 flex-col border-r border-blue-200 bg-white/95 px-4 py-4 text-slate-700 shadow-2xl shadow-blue-200/40 transition-transform duration-300 ease-in-out transform sm:w-80 sm:px-5 sm:py-5 lg:transform-none lg:translate-x-0 dark:border-slate-800 dark:bg-gradient-to-b dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 dark:shadow-slate-950/30"
     [class.translate-x-0]="mobileSidebarOpen"
     [class.-translate-x-full]="!mobileSidebarOpen">
 
@@ -122,7 +122,7 @@
           </div>
           <div>
             <p class="text-sm font-semibold text-slate-900 dark:text-white sm:text-base">MentorCore</p>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Asistente de innovación</p>
+            <p class="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:block">Asistente de innovación</p>
           </div>
         </div>
       </div>
@@ -180,11 +180,11 @@
 
     <!-- Footer con input elegante -->
     <div class="px-3 pb-4 pt-2 sm:px-4 sm:pb-4">
-      <div class="mx-auto mb-3 flex w-full max-w-5xl flex-wrap items-center justify-end gap-2 text-[11px] sm:text-xs">
+      <div class="mx-auto mb-3 grid w-full max-w-5xl grid-cols-1 items-stretch gap-2 text-[11px] sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:text-xs">
         <!-- Dropdown personalizado para Agente -->
-        <div class="relative inline-block text-left" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
+        <div class="relative inline-block w-full text-left sm:w-auto" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
           <button type="button" (click)="toggleProviderDropdown()"
-                  class="mc-button inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+                  class="mc-button inline-flex w-full items-center justify-between gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 sm:w-auto sm:justify-start dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
             <i class="fa-solid fa-robot text-xs"></i>
             <span class="max-w-[8rem] truncate font-medium capitalize">{{ selectedProvider }}</span>
             <svg class="h-3 w-3 transition-transform" [class.rotate-180]="providerDropdownOpen" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +192,7 @@
             </svg>
           </button>
           <div *ngIf="providerDropdownOpen"
-               class="absolute bottom-full right-0 z-30 mb-2 w-48 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl shadow-blue-900/10 dark:border-slate-700 dark:bg-slate-900">
+               class="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl shadow-blue-900/10 sm:left-auto sm:w-48 dark:border-slate-700 dark:bg-slate-900">
             <button *ngFor="let p of providerOptions" (click)="selectProvider(p.value)"
                     class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-blue-100 dark:text-slate-200 dark:hover:bg-slate-800 capitalize">
               {{ p.label }}
@@ -201,9 +201,9 @@
         </div>
 
         <!-- Selector de modelo -->
-        <div class="relative inline-block text-left" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
+        <div class="relative inline-block w-full text-left sm:w-auto" tabindex="0" role="presentation" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" (keydown.space)="$event.stopPropagation()">
           <button type="button" (click)="toggleModelDropdown()"
-                  class="mc-button inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+                  class="mc-button inline-flex w-full items-center justify-between gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 sm:w-auto sm:justify-start dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
             <i class="fa-solid fa-microchip text-xs"></i>
             <span class="max-w-[11rem] truncate font-medium">{{ selectedModel }}</span>
             <svg class="h-3 w-3 transition-transform" [class.rotate-180]="modelDropdownOpen" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,7 +211,7 @@
             </svg>
           </button>
           <div *ngIf="modelDropdownOpen"
-               class="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl shadow-blue-900/10 dark:border-slate-700 dark:bg-slate-900">
+               class="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl shadow-blue-900/10 sm:left-auto sm:w-60 dark:border-slate-700 dark:bg-slate-900">
             <button *ngFor="let m of getModelOptions()" (click)="selectModel(m)"
                     class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-blue-100 dark:text-slate-200 dark:hover:bg-slate-800">
               {{ m }}
@@ -230,7 +230,7 @@
                     rows="1"
                     placeholder="Escribe tu pregunta aquí..."
                     class="min-h-[2.75rem] max-h-[9rem] flex-1 resize-none overflow-hidden bg-transparent py-2.5 pl-2 pr-2 text-sm leading-6 text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"></textarea>
-          <div class="flex items-center gap-1 pr-1" (keydown)="$event.stopPropagation()">
+          <div class="flex shrink-0 items-center gap-1 pr-1" (keydown)="$event.stopPropagation()">
             <input type="file" #fileInput (change)="onFileSelected($event)" class="hidden">
             <button (click)="fileInput.click()" title="Adjuntar archivo"
                     class="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
@@ -270,7 +270,7 @@
          (keydown.escape)="closeShareModal()"
          (keydown.enter)="$event.stopPropagation()"
          (keydown.space)="$event.stopPropagation()">
-      <div class="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+      <div class="border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 dark:border-slate-800">
         <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Compartir</p>
         <h3 class="mt-1 text-xl font-semibold text-slate-900 dark:text-white">Compartir chat completo</h3>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -281,7 +281,7 @@
         </p>
       </div>
 
-      <div class="space-y-5 px-6 py-5">
+      <div class="space-y-5 px-4 py-4 sm:px-6 sm:py-5">
         <div class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-slate-600 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-slate-300">
           Se generará un enlace único para importar esta conversación completa en otra cuenta.
         </div>
@@ -296,7 +296,7 @@
 
         <div *ngIf="shareResultUrl" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/40 dark:bg-emerald-900/20">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-200">Enlace compartido</p>
-          <div class="mt-2 flex flex-wrap items-center gap-2">
+          <div class="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <input [value]="shareResultUrl" readonly class="mc-input min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none dark:border-emerald-900/40 dark:bg-slate-950 dark:text-slate-100" />
             <button type="button" (click)="copyShareLink()" class="mc-button rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
               Copiar enlace
@@ -305,7 +305,7 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-2 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
         <button type="button" (click)="closeShareModal()"
                 class="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
           Cancelar
@@ -330,14 +330,14 @@
          (keydown.escape)="closeChatModal()"
          (keydown.enter)="$event.stopPropagation()"
          (keydown.space)="$event.stopPropagation()">
-      <div class="border-b border-blue-200 px-6 pb-4 pt-5 dark:border-slate-800">
+      <div class="border-b border-blue-200 px-4 pb-4 pt-5 sm:px-6 dark:border-slate-800">
         <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Gestión de chat</p>
         <h3 class="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
           {{ chatModalMode === 'rename' ? 'Editar nombre del chat' : 'Eliminar chat' }}
         </h3>
       </div>
 
-      <div class="px-6 py-5">
+      <div class="px-4 py-5 sm:px-6">
         <div *ngIf="chatModalMode === 'rename'" class="space-y-3">
           <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Usa un nombre breve y claro para identificar esta conversación.</p>
           <input [(ngModel)]="chatModalTitleDraft"
@@ -354,7 +354,7 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-2 border-t border-blue-200 px-6 pb-5 pt-4 dark:border-slate-800">
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-blue-200 px-4 pb-5 pt-4 sm:px-6 dark:border-slate-800">
         <button type="button"
                 (click)="closeChatModal()"
                 class="rounded-2xl border border-blue-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">

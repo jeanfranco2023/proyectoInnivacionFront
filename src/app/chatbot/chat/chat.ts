@@ -245,17 +245,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private async loadChatsByUser(force = false) {
-    // Obtener el username actual de la sesión
     const currentUser = this.sessionService.getUser();
     const username = currentUser?.username || this.currentUsername;
 
-    console.log('🔍 DEBUG - loadChatsByUser():');
-    console.log('  - currentUser:', currentUser);
-    console.log('  - username para buscar:', username);
-    console.log('  - this.currentUsername:', this.currentUsername);
-
     if (!username || username === 'demo') {
-      console.warn('⚠️ Username no válido para cargar chats:', username);
       this.misChats = [];
       this.lastLoadedChatsUser = null;
       return;
@@ -269,16 +262,11 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.lastLoadedChatsUser = username;
 
     try {
-      console.log('📥 Cargando chats para usuario:', username);
       const chats = await firstValueFrom(this.chatApiService.listChats(username));
-      console.log('✅ Respuesta del servidor:', chats);
 
       this.misChats = chats.map((chat) => this.mapChatSummary(chat));
-      console.log('✅ Chats mapeados:', this.misChats);
-      console.log('✅ Chats cargados:', this.misChats.length);
       void this.preloadChatsDetails(this.misChats.slice(0, 6));
     } catch (error) {
-      console.error('❌ Error cargando chats:', error);
       this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');
       this.misChats = [];
       this.lastLoadedChatsUser = null;
