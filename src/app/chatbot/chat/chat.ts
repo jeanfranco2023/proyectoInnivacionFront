@@ -1207,6 +1207,20 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private buildSendErrorMessage(error: unknown): string {
+    const upstreamDetailRaw =
+      error instanceof HttpErrorResponse
+        ? String(
+            (error.error as { error?: { message?: string }; message?: string } | null)?.error?.message ||
+              (error.error as { error?: { message?: string }; message?: string } | null)?.message ||
+              ''
+          ).trim()
+        : '';
+
+    const upstreamDetail =
+      upstreamDetailRaw.length > 220
+        ? `${upstreamDetailRaw.slice(0, 220).trim()}...`
+        : upstreamDetailRaw;
+
     const status =
       error instanceof HttpErrorResponse
         ? error.status
@@ -1216,6 +1230,9 @@ export class ChatComponent implements OnInit, OnDestroy {
 
     if (status !== null) {
       if (status === 502 || status === 503 || status === 504) {
+        if (upstreamDetail) {
+          return `El servicio de IA no esta disponible temporalmente (${status}). Detalle: ${upstreamDetail}`;
+        }
         return 'El servicio de IA no esta disponible temporalmente (502/503/504). Intenta de nuevo en unos segundos.';
       }
       if (status === 404) {
@@ -1227,6 +1244,10 @@ export class ChatComponent implements OnInit, OnDestroy {
       if (status === 0) {
         return 'No hay conexion con el backend. Verifica internet o CORS del servidor.';
       }
+    }
+
+    if (upstreamDetail) {
+      return `No pude obtener respuesta del backend. Detalle: ${upstreamDetail}`;
     }
 
     return 'No pude obtener respuesta del backend. Verifica que el API este activo y la URL en enviroment.ts.';
