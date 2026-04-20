@@ -1,13 +1,13 @@
-<div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-6 text-slate-100 sm:py-8">
+<div class="mc-auth-shell mc-auth-shell-ink">
   <div class="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md items-center justify-center sm:min-h-[calc(100dvh-4rem)]">
-    <div class="w-full rounded-[1.5rem] border border-slate-700/60 bg-slate-900/85 p-6 shadow-2xl shadow-slate-950/40 backdrop-blur sm:rounded-[1.75rem] sm:p-10">
+    <div class="mc-auth-panel w-full p-6 sm:p-10">
       <div class="mb-6 text-center sm:mb-8">
-        <div class="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-200">
+        <div class="mc-auth-badge mx-auto mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]">
           <img src="/SmileWhite.png" alt="MentorCore" class="h-5 w-5 object-contain">
           MentorCore
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Iniciar sesión</h1>
-        <p class="mt-2 text-sm leading-6 text-slate-400">Accede con tus credenciales.</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-100">Iniciar sesión</h1>
+        <p class="mc-auth-muted mt-2 text-sm leading-6">Accede con tus credenciales.</p>
       </div>
 
       <form class="space-y-4" (ngSubmit)="login()" autocomplete="off">
@@ -19,7 +19,7 @@
                    (ngModelChange)="onUsernameInput()"
                    (blur)="validateUsernameField()"
                    [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
-                   class="w-full rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10"
+                   class="mc-auth-input w-full rounded-2xl px-11 py-3 text-sm outline-none transition"
                    placeholder="Tu usuario">
           </div>
           <p *ngIf="fieldErrors.username" class="text-xs text-red-300">{{ fieldErrors.username }}</p>
@@ -33,11 +33,11 @@
                    (ngModelChange)="onPasswordInput()"
                    (blur)="validatePasswordField()"
                    [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
-                   class="w-full rounded-2xl border border-slate-700/80 bg-slate-800/85 px-11 py-3 pr-12 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 focus:bg-slate-800 focus:ring-4 focus:ring-sky-400/10"
+                   class="mc-auth-input w-full rounded-2xl px-11 py-3 pr-12 text-sm outline-none transition"
                    placeholder="Tu contraseña">
             <button type="button"
                     (click)="togglePasswordVisibility()"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-700/60 hover:text-slate-200"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-700/70 hover:text-slate-100"
                     [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                     [title]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
               <i [class]="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
@@ -46,8 +46,8 @@
           <p *ngIf="fieldErrors.password" class="text-xs text-red-300">{{ fieldErrors.password }}</p>
         </div>
 
-        <button type="submit" [disabled]="isLoading"
-                class="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/15 transition hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25 disabled:cursor-not-allowed disabled:opacity-70">
+        <button type="submit" [disabled]="isLoading || isLoginTransitioning"
+          class="mc-primary-btn flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition">
           {{ isLoading ? 'Ingresando...' : 'Entrar' }}
         </button>
 
@@ -56,8 +56,8 @@
         </p>
       </form>
 
-      <div class="mt-5 text-center text-sm text-slate-400">
-        <a routerLink="/register" class="font-semibold text-sky-300 transition hover:text-sky-200">Crear cuenta</a>
+      <div class="mc-auth-muted mt-5 text-center text-sm">
+        <a routerLink="/register" class="mc-auth-link font-semibold transition">Crear cuenta</a>
       </div>
     </div>
   </div>
@@ -92,6 +92,22 @@
                 class="rounded-2xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400">
           Entendido
         </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoginTransitioning"
+       class="mc-login-transition fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/68 p-4 backdrop-blur-md"
+       role="status"
+       aria-live="polite">
+    <div class="mc-login-transition-panel rounded-3xl border border-blue-200/30 bg-white/90 px-8 py-7 text-center shadow-2xl shadow-blue-950/20 dark:border-slate-700 dark:bg-slate-900/92">
+      <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-blue-500 text-white shadow-lg shadow-blue-500/25">
+        <i class="fa-solid fa-book-open-reader text-lg"></i>
+      </div>
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-sky-300">MentorCore</p>
+      <p class="mt-2 text-base font-semibold text-slate-900 dark:text-slate-100">Preparando tu espacio académico...</p>
+      <div class="mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-blue-100 dark:bg-slate-700">
+        <span class="block h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-blue-500 to-sky-400"></span>
       </div>
     </div>
   </div>

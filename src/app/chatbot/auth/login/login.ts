@@ -24,6 +24,7 @@ export class LoginComponent implements OnInit {
   };
 
   isLoading = false;
+  isLoginTransitioning = false;
   errorMessage = '';
   showErrorModal = false;
   private returnUrl = '/chat';
@@ -155,7 +156,13 @@ export class LoginComponent implements OnInit {
           user: session.user,
           expiresAt: Date.now() + session.expires_in * 1000,
         });
-        void this.router.navigateByUrl(this.returnUrl);
+
+        this.isLoginTransitioning = true;
+        this.cdr.detectChanges();
+
+        setTimeout(() => {
+          void this.router.navigateByUrl(this.returnUrl);
+        }, 900);
       },
       error: (error) => {
         const status = Number(error?.status ?? 0);
