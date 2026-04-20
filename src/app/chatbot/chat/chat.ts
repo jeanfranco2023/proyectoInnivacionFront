@@ -186,7 +186,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private currentUsername: string = 'demo';
   userInput: string = '';
   selectedProvider: AiProvider = 'gemini';
-  selectedModel: string = 'gemini-2.5-flash';
+  selectedModel: string = 'gemini-1.5-flash';
   isSending: boolean = false;
   isListening: boolean = false;
   searchTerm: string = '';
