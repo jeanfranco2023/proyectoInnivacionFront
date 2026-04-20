@@ -4,7 +4,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { distinctUntilChanged, firstValueFrom, map, Subscription } from 'rxjs';
 import { marked } from 'marked';
-import { jsPDF } from 'jspdf';
 
 import { ChatApiService } from '../../service/chat/chat-api.service';
 import { AuthApiService } from '../../service/auth/auth-api.service';
@@ -17,15 +16,22 @@ import {
 } from '../../models/chat/chat-api.types';
 import { enviroment } from '../../../environments/enviroment';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  generateOptimizedPdf,
-  generateOptimizedTextDoc,
-  generateOptimizedJsonDoc,
-} from './export-utils';
 
 type ThemePreference = 'light' | 'dark';
 type ShareScope = 'prompt' | 'chat' | 'custom';
 type SummaryExportFormat = 'pdf' | 'doc';
+
+interface GeneratedSummary {
+  chat_id: string | null;
+  title: string;
+  generated_at: string;
+  introduction: string;
+  topics: string[];
+  analysis: string[];
+  concepts: string[];
+  conclusions: string[];
+  recommendations: string[];
+}
 
 interface ExportReport {
   title: string;
@@ -235,6 +241,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   private sessionSubscription: Subscription | null = null;
   private lastLoadedChatsUser: string | null = null;
   private loadingChatId: string | null = null;
+  private lastSummaryCacheKey: string | null = null;
+  private lastSummaryCacheValue: GeneratedSummary | null = null;
   @ViewChild('messageTextarea') messageTextarea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('chatMessagesContainer') chatMessagesContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('chatListContainer') chatListContainer?: ElementRef<HTMLDivElement>;
@@ -562,6 +570,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.messages = mapped.historial.map((message) =>
         message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
       );
+      this.invalidateSummaryCache();
       this.cdr.detectChanges();
       this.scrollToBottom();
     } catch {
@@ -800,27 +809,27 @@ export class ChatComponent implements OnInit, OnDestroy {
         return;
       }
 
-      console.log('Enviando al backend:', {
-        chat_id: this.activeChat?.id || null,
-        messages: messagesToSend,
-        career: this.currentCareer,
-        provider: this.selectedProvider,
-        model: this.selectedModel,
-      });
+      const summaryCacheKey = this.buildSummaryCacheKey(messagesToSend);
+      let summary: GeneratedSummary;
 
-      // Llamar al endpoint de generación dinámica de resumen
-      const summary = await firstValueFrom(
-        this.chatApiService.generateSummary({
-          chat_id: this.activeChat?.id || null,
-          messages: messagesToSend,
-          career: this.currentCareer || 'general',
-          provider: this.selectedProvider,
-          model: this.selectedModel,
-          language: 'es',
-          max_bot_messages: 10,
-          max_total_messages: 20,
-        })
-      );
+      if (this.lastSummaryCacheKey === summaryCacheKey && this.lastSummaryCacheValue) {
+        summary = this.lastSummaryCacheValue;
+      } else {
+        summary = await firstValueFrom(
+          this.chatApiService.generateSummary({
+            chat_id: this.activeChat?.id || null,
+            messages: messagesToSend,
+            career: this.currentCareer || 'general',
+            provider: this.selectedProvider,
+            model: this.selectedModel,
+            language: 'es',
+            max_bot_messages: 10,
+            max_total_messages: 20,
+          })
+        );
+        this.lastSummaryCacheKey = summaryCacheKey;
+        this.lastSummaryCacheValue = summary;
+      }
 
       // Convertir respuesta a formato PDF/Doc
       const exportReport: ExportReport = {
@@ -837,7 +846,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       const safeBaseName = this.buildSafeFileName(exportReport.title);
 
       if (format === 'pdf') {
-        this.downloadSummaryAsPdf(exportReport, safeBaseName);
+        await this.downloadSummaryAsPdf(exportReport, safeBaseName);
       } else {
         this.downloadSummaryAsDoc(exportReport, safeBaseName);
       }
@@ -857,32 +866,53 @@ export class ChatComponent implements OnInit, OnDestroy {
   private prepareMessagesForSummary(): Array<{ role: 'user' | 'bot'; content: string }> {
     if (this.messages.length === 0) return [];
 
-    // Filtrar mensajes de archivo y vacíos
+    // Filtrar mensajes de archivo y vacios
     const validMessages = this.messages.filter((msg) => !msg.isFile && msg.text?.trim());
 
     if (validMessages.length === 0) return [];
 
-    // Tomar últimos 20 mensajes en total, pero máximo 10 de bot
-    const botMessages = validMessages.filter((msg) => msg.role === 'bot').length;
-    const maxBotToInclude = Math.min(botMessages, 10);
-
+    const maxTotal = 20;
+    const maxBot = 10;
+    const maxCharsPerMessage = 1200;
     let botIncluded = 0;
-    const filtered = validMessages.filter((msg) => {
-      if (msg.role === 'bot') {
-        if (botIncluded < maxBotToInclude) {
-          botIncluded++;
-          return true;
-        }
-        return false;
-      }
-      return true;
-    });
+    const collected: Array<{ role: 'user' | 'bot'; content: string }> = [];
 
-    // Tomar últimos 20
-    return filtered.slice(-20).map((msg) => ({
-      role: msg.role,
-      content: msg.text || '',
-    }));
+    // Recolectar desde el final para priorizar contexto reciente.
+    for (let i = validMessages.length - 1; i >= 0 && collected.length < maxTotal; i--) {
+      const msg = validMessages[i];
+      if (msg.role === 'bot' && botIncluded >= maxBot) {
+        continue;
+      }
+
+      let content = (msg.text || '').trim();
+      if (!content) continue;
+      if (content.length > maxCharsPerMessage) {
+        content = `${content.slice(0, maxCharsPerMessage)}...`;
+      }
+
+      collected.push({ role: msg.role, content });
+      if (msg.role === 'bot') {
+        botIncluded++;
+      }
+    }
+
+    return collected.reverse();
+  }
+
+  private buildSummaryCacheKey(messages: Array<{ role: 'user' | 'bot'; content: string }>): string {
+    return JSON.stringify({
+      chatId: this.activeChat?.id || null,
+      provider: this.selectedProvider,
+      model: this.selectedModel,
+      career: this.currentCareer || 'general',
+      language: 'es',
+      messages,
+    });
+  }
+
+  private invalidateSummaryCache() {
+    this.lastSummaryCacheKey = null;
+    this.lastSummaryCacheValue = null;
   }
 
     logout() {
@@ -1041,6 +1071,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.scrollChatListToBottom();
 
     this.messages.push({ role: 'user', text: promptActual });
+    this.invalidateSummaryCache();
     this.userInput = '';
     this.resetMessageTextareaHeight();
     this.scrollToBottom();
@@ -1219,6 +1250,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.messages = cached.historial.map((message) =>
         message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
       );
+      this.invalidateSummaryCache();
       this.closeSidebarOnMobile();
       this.scrollToBottom();
       return;
@@ -1246,6 +1278,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.messages = updated.historial.map((message) =>
         message.role === 'bot' ? { ...message, html: this.formatBotContent(message.text) } : message,
       );
+      this.invalidateSummaryCache();
       this.selectedProvider = updated.provider;
       this.selectedModel = updated.model;
     } catch {
@@ -1270,6 +1303,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   resetChat() {
     this.messages = [];
+    this.invalidateSummaryCache();
     this.userInput = '';
     this.activeChat = null;
     this.selectedProvider = 'gemini';
@@ -1509,6 +1543,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private addBotMessage(rawText: string) {
+    this.invalidateSummaryCache();
     this.messages.push({
       role: 'bot',
       text: rawText,
@@ -1573,6 +1608,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       text: rawText,
       html: this.formatBotContent(rawText || ' '),
     };
+    this.invalidateSummaryCache();
     this.cdr.detectChanges();
     this.scrollToBottom();
   }
@@ -2377,7 +2413,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   // ======================= EXPORTACION =======================
-  private downloadSummaryAsPdf(report: ExportReport, baseFileName: string) {
+  private async downloadSummaryAsPdf(report: ExportReport, baseFileName: string) {
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
