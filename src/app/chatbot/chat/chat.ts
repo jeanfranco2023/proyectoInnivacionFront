@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { distinctUntilChanged, firstValueFrom, map, Subscription } from 'rxjs';
 import { marked } from 'marked';
+import { jsPDF } from 'jspdf';
 
 import { ChatApiService } from '../../service/chat/chat-api.service';
 import { AuthApiService } from '../../service/auth/auth-api.service';
@@ -16,9 +17,26 @@ import {
 } from '../../models/chat/chat-api.types';
 import { enviroment } from '../../../environments/enviroment';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  generateOptimizedPdf,
+  generateOptimizedTextDoc,
+  generateOptimizedJsonDoc,
+} from './export-utils';
 
 type ThemePreference = 'light' | 'dark';
 type ShareScope = 'prompt' | 'chat' | 'custom';
+type SummaryExportFormat = 'pdf' | 'doc';
+
+interface ExportReport {
+  title: string;
+  generatedAt: string;
+  introduction: string;
+  mlTopics: string[];
+  analysis: string[];
+  keyConcepts: string[];
+  conclusions: string[];
+  recommendations: string[];
+}
 
 interface ChatMessage {
   role: 'user' | 'bot';
@@ -46,6 +64,109 @@ interface PromptListItem {
   chat?: ChatItem;
   sharedPrompt?: SharedPromptResponse;
 }
+
+interface TaxonomyRule {
+  label: string;
+  keywords: string[];
+}
+
+interface ReportTaxonomyConfig {
+  conversationTopics: TaxonomyRule[];
+  focusTopics: TaxonomyRule[];
+  keyConceptDomains: TaxonomyRule[];
+}
+
+interface CareerTaxonomyProfile extends ReportTaxonomyConfig {
+  displayName: string;
+  aliases: string[];
+}
+
+interface ReportTaxonomyDataset {
+  defaultCareerKey: string;
+  careers: Record<string, CareerTaxonomyProfile>;
+}
+
+const DEFAULT_REPORT_TAXONOMY_DATASET: ReportTaxonomyDataset = {
+  defaultCareerKey: 'general',
+  careers: {
+    general: {
+      displayName: 'General multidisciplinario',
+      aliases: ['general', 'multidisciplinario', 'sin carrera'],
+      conversationTopics: [
+        { label: 'metodologia de investigacion', keywords: ['investigacion', 'metodologia', 'hipotesis', 'variable', 'muestra', 'analisis', 'estadistica'] },
+        { label: 'analisis y toma de decisiones', keywords: ['decision', 'criterio', 'prioridad', 'alternativa', 'estrategia', 'riesgo', 'evaluacion'] },
+        { label: 'comunicacion academica', keywords: ['resumen', 'informe', 'argumento', 'redaccion', 'conclusion', 'ensayo'] },
+      ],
+      focusTopics: [
+        { label: 'fundamentos conceptuales', keywords: ['concepto', 'definicion', 'fundamento', 'principio', 'teoria'] },
+        { label: 'aplicacion practica', keywords: ['caso', 'ejemplo', 'aplicacion', 'proceso', 'implementacion'] },
+        { label: 'evaluacion de resultados', keywords: ['resultado', 'indicador', 'medicion', 'evaluacion', 'mejora'] },
+      ],
+      keyConceptDomains: [
+        { label: 'metodologia e investigacion', keywords: ['investigacion', 'metodologia', 'hipotesis', 'variable', 'muestra', 'analisis', 'estadistica'] },
+        { label: 'planificacion y gestion', keywords: ['plan', 'objetivo', 'estrategia', 'prioridad', 'decision', 'riesgo'] },
+        { label: 'comunicacion y sintesis', keywords: ['resumen', 'informe', 'conclusion', 'argumento', 'explicacion'] },
+      ],
+    },
+    ingenieria_tecnologia: {
+      displayName: 'Ingenieria y tecnologia',
+      aliases: ['ingenieria', 'sistemas', 'software', 'informatica', 'tecnologia', 'computacion'],
+      conversationTopics: [
+        { label: 'arquitectura y desarrollo', keywords: ['arquitectura', 'modulo', 'api', 'backend', 'frontend', 'componente'] },
+        { label: 'datos e inteligencia artificial', keywords: ['machine learning', 'modelo', 'entrenamiento', 'dataset', 'algoritmo', 'metricas'] },
+        { label: 'calidad y operacion', keywords: ['error', 'validacion', 'prueba', 'rendimiento', 'despliegue', 'seguridad'] },
+      ],
+      focusTopics: [
+        { label: 'diseno tecnico', keywords: ['diseno', 'arquitectura', 'patron', 'interfaz', 'estructura'] },
+        { label: 'implementacion y pruebas', keywords: ['codigo', 'implementacion', 'pruebas', 'debug', 'refactor'] },
+        { label: 'integracion y mantenimiento', keywords: ['integracion', 'endpoint', 'servicio', 'versionado', 'mantenimiento'] },
+      ],
+      keyConceptDomains: [
+        { label: 'ingenieria de software', keywords: ['sistema', 'software', 'api', 'backend', 'frontend', 'arquitectura'] },
+        { label: 'analitica y machine learning', keywords: ['machine learning', 'entrenamiento', 'clasificacion', 'regresion', 'feature', 'modelo'] },
+        { label: 'calidad y seguridad', keywords: ['validacion', 'error', 'prueba', 'seguridad', 'autenticacion'] },
+      ],
+    },
+    salud_ciencias_medicas: {
+      displayName: 'Salud y ciencias medicas',
+      aliases: ['salud', 'medicina', 'enfermeria', 'odontologia', 'farmacia', 'nutricion'],
+      conversationTopics: [
+        { label: 'atencion y diagnostico', keywords: ['paciente', 'diagnostico', 'sintoma', 'anamnesis', 'evaluacion clinica'] },
+        { label: 'tratamiento y prevencion', keywords: ['tratamiento', 'terapia', 'prevencion', 'protocolo', 'seguimiento'] },
+        { label: 'evidencia y bioetica', keywords: ['evidencia', 'guia clinica', 'bioetica', 'riesgo', 'beneficio'] },
+      ],
+      focusTopics: [
+        { label: 'decision clinica', keywords: ['diagnostico', 'criterio clinico', 'pronostico', 'indicacion'] },
+        { label: 'seguridad del paciente', keywords: ['seguridad', 'adverso', 'farmacovigilancia', 'protocolo'] },
+        { label: 'salud publica', keywords: ['epidemiologia', 'prevencion', 'incidencia', 'poblacion'] },
+      ],
+      keyConceptDomains: [
+        { label: 'diagnostico y evaluacion', keywords: ['diagnostico', 'sintoma', 'examen', 'evaluacion', 'criterio'] },
+        { label: 'tratamiento y cuidado', keywords: ['tratamiento', 'terapia', 'cuidado', 'seguimiento', 'paciente'] },
+        { label: 'epidemiologia y prevencion', keywords: ['epidemiologia', 'prevencion', 'factor de riesgo', 'incidencia'] },
+      ],
+    },
+    derecho_normatividad: {
+      displayName: 'Derecho y normatividad',
+      aliases: ['derecho', 'juridico', 'abogacia', 'leyes', 'normatividad'],
+      conversationTopics: [
+        { label: 'analisis normativo', keywords: ['ley', 'norma', 'articulo', 'constitucion', 'codigo'] },
+        { label: 'argumentacion juridica', keywords: ['argumentacion', 'interpretacion', 'principio', 'doctrina', 'tesis'] },
+        { label: 'casuistica y jurisprudencia', keywords: ['caso', 'jurisprudencia', 'precedente', 'sentencia', 'fallo'] },
+      ],
+      focusTopics: [
+        { label: 'jerarquia normativa', keywords: ['constitucion', 'ley', 'reglamento', 'jerarquia'] },
+        { label: 'aplicacion al caso', keywords: ['hechos', 'supuesto', 'aplicacion', 'tipificacion'] },
+        { label: 'sustento argumentativo', keywords: ['argumento', 'fundamento', 'criterio', 'conclusion juridica'] },
+      ],
+      keyConceptDomains: [
+        { label: 'normativa y fuentes', keywords: ['norma', 'ley', 'constitucion', 'reglamento', 'fuente'] },
+        { label: 'interpretacion juridica', keywords: ['interpretacion', 'principio', 'doctrina', 'argumentacion'] },
+        { label: 'jurisprudencia y casos', keywords: ['jurisprudencia', 'precedente', 'sentencia', 'caso'] },
+      ],
+    },
+  },
+};
 
 @Component({
   selector: 'app-chat',
@@ -79,6 +200,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   private lastInputWasVoice: boolean = false;
   isLoadingSharedPrompts: boolean = false;
   isShareModalOpen: boolean = false;
+  isExportMenuOpen: boolean = false;
+  isExportingSummary: boolean = false;
   isSharingPrompt: boolean = false;
   shareRecipient: string = '';
   shareScope: ShareScope = 'prompt';
@@ -86,6 +209,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   shareDraftTitle: string = '';
   shareStatusMessage: string = '';
   shareResultUrl: string = '';
+  copiedMessageIndex: number | null = null;
+  speakingMessageIndex: number | null = null;
 
   messages: ChatMessage[] = [];
   misChats: ChatItem[] = [];
@@ -97,7 +222,14 @@ export class ChatComponent implements OnInit, OnDestroy {
   private activeUtterance: SpeechSynthesisUtterance | null = null;
   private readonly speechToTextEndpoint: string = `${enviroment.apiBaseUrl}${enviroment.endpoints.speechToText}`;
   private recognitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private copiedMessageTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private activeChat: ChatItem | null = null;
+  private readonly speechRate = 1.5;
+  private readonly reportTaxonomyUrl: string = '/report-taxonomy.json';
+  private reportTaxonomyDataset: ReportTaxonomyDataset = DEFAULT_REPORT_TAXONOMY_DATASET;
+  private activeReportTaxonomy: ReportTaxonomyConfig = DEFAULT_REPORT_TAXONOMY_DATASET.careers[DEFAULT_REPORT_TAXONOMY_DATASET.defaultCareerKey];
+  private activeCareerLabel: string = DEFAULT_REPORT_TAXONOMY_DATASET.careers[DEFAULT_REPORT_TAXONOMY_DATASET.defaultCareerKey].displayName;
+  private currentCareer: string = '';
   profileImageUrl: string | null = null;
   private profileImageObjectUrl: string | null = null;
   private sessionSubscription: Subscription | null = null;
@@ -115,7 +247,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   // Modelos predefinidos por proveedor
   modelOptionsByProvider: { [key in AiProvider]?: string[] } = {
     gemini: ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
-    ollama: ['llama3.2:1b'],
+    ollama: ['llama3.1'],
   };
 
   // Dropdown del agente
@@ -136,10 +268,16 @@ export class ChatComponent implements OnInit, OnDestroy {
     const currentUser = this.sessionService.getUser();
     this.nombreUsuario = currentUser?.display_name || 'Seven';
     this.currentUsername = currentUser?.username || 'demo';
+    this.currentCareer = currentUser?.career || '';
+    this.applyCareerScopedTaxonomy(this.currentCareer);
 
     const storedTheme = globalThis.localStorage?.getItem('chat-theme');
-    const serverTheme: ThemePreference | null =
-      currentUser?.is_dark === true ? 'dark' : currentUser?.is_dark === false ? 'light' : null;
+    let serverTheme: ThemePreference | null = null;
+    if (currentUser?.is_dark === true) {
+      serverTheme = 'dark';
+    } else if (currentUser?.is_dark === false) {
+      serverTheme = 'light';
+    }
     const initialTheme: ThemePreference =
       storedTheme === 'dark' || storedTheme === 'light'
         ? storedTheme
@@ -229,7 +367,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       .reverse()
       .find((message) => !!message?.model?.trim());
     const provider = this.toAiProvider(lastWithModel?.provider || base?.provider);
-    const fallbackModel = provider === 'ollama' ? 'llama3.2:1b' : 'gemini-2.5-flash';
+    const fallbackModel = provider === 'ollama' ? 'llama3.1' : 'gemini-2.5-flash';
 
     return {
       id: chat.id ?? base?.id ?? null,
@@ -266,7 +404,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
       this.misChats = chats.map((chat) => this.mapChatSummary(chat));
       void this.preloadChatsDetails(this.misChats.slice(0, 6));
-    } catch (error) {
+    } catch {
       this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');
       this.misChats = [];
       this.lastLoadedChatsUser = null;
@@ -288,7 +426,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
    }
 
-   openShareModal(scope: ShareScope = 'chat', message?: ChatMessage) {
+   openShareModal() {
     this.shareStatusMessage = '';
     this.shareResultUrl = '';
     this.shareRecipient = '';
@@ -333,15 +471,18 @@ export class ChatComponent implements OnInit, OnDestroy {
     return [`Chat: ${title}`, messages ? `\n${messages}` : '', '\n— Compartido desde MentorCore'].join('');
   }
 
-  private buildChatShareHistory() {
+  private buildChatShareHistory(): Array<{ role: 'user' | 'bot'; provider: string; model: string; content: string }> {
     return this.messages
       .filter((message) => !message.isFile)
-      .map((message) => ({
-        role: (message.role === 'user' ? 'user' : 'bot') as 'user' | 'bot',
-        provider: this.selectedProvider,
-        model: this.selectedModel,
-        content: message.text,
-      }));
+      .map((message) => {
+        const role: 'user' | 'bot' = message.role === 'user' ? 'user' : 'bot';
+        return {
+          role,
+          provider: this.selectedProvider,
+          model: this.selectedModel,
+          content: message.text,
+        };
+      });
   }
 
   private buildSharePayload(): {
@@ -459,7 +600,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   get currentModelPlaceholder(): string {
     if (this.selectedProvider === 'gemini') return 'gemini-2.5-flash';
-    if (this.selectedProvider === 'ollama') return 'llama3.2:1b';
+    if (this.selectedProvider === 'ollama') return 'llama3.1';
     return 'modelo';
   }
 
@@ -531,31 +672,29 @@ export class ChatComponent implements OnInit, OnDestroy {
     const search = this.searchTerm.toLowerCase();
 
     const ownChats = this.misChats
-      .filter((chat) => {
-        const coincideBusqueda =
+      .filter(
+        (chat) =>
           chat.titulo.toLowerCase().includes(search) ||
-          chat.historial.some((m) => m.text.toLowerCase().includes(search));
-        return coincideBusqueda;
-      })
+          chat.historial.some((m) => m.text.toLowerCase().includes(search)),
+      )
       .map<PromptListItem>((chat) => ({
         kind: 'own',
         title: chat.titulo,
         subtitle: chat.favorito ? 'Favorito' : 'Prompt propio',
         preview: chat.historial
           .filter((m) => m.role === 'user')
-          .slice(-1)[0]?.text || 'Sin contenido disponible',
+          .at(-1)?.text || 'Sin contenido disponible',
         favorite: chat.favorito,
         chat,
       }));
 
     const shared = this.sharedPrompts
-      .filter((item) => {
-        const coincideBusqueda =
+      .filter(
+        (item) =>
           item.prompt.toLowerCase().includes(search) ||
           item.from_user.toLowerCase().includes(search) ||
-          (item.source_chat_title || '').toLowerCase().includes(search);
-        return coincideBusqueda;
-      })
+          (item.source_chat_title || '').toLowerCase().includes(search),
+      )
       .map<PromptListItem>((item) => ({
         kind: 'shared',
         title: item.source_chat_title || `Compartido por @${item.from_user}`,
@@ -640,18 +779,125 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.closeUserMenu();
   }
 
-  logout() {
+  toggleExportMenu(event?: Event) {
+    event?.stopPropagation();
+    this.isExportMenuOpen = !this.isExportMenuOpen;
+  }
+
+  closeExportMenu() {
+    this.isExportMenuOpen = false;
+  }
+
+  async exportChatSummary(format: SummaryExportFormat) {
+    if (this.isExportingSummary) return;
+    this.isExportingSummary = true;
+
+    try {
+      // Preparar últimos N mensajes para enviar al backend
+      const messagesToSend = this.prepareMessagesForSummary();
+      if (messagesToSend.length === 0) {
+        this.setMicStatus('No hay contenido suficiente para generar un resumen.', 'error');
+        return;
+      }
+
+      console.log('Enviando al backend:', {
+        chat_id: this.activeChat?.id || null,
+        messages: messagesToSend,
+        career: this.currentCareer,
+        provider: this.selectedProvider,
+        model: this.selectedModel,
+      });
+
+      // Llamar al endpoint de generación dinámica de resumen
+      const summary = await firstValueFrom(
+        this.chatApiService.generateSummary({
+          chat_id: this.activeChat?.id || null,
+          messages: messagesToSend,
+          career: this.currentCareer || 'general',
+          provider: this.selectedProvider,
+          model: this.selectedModel,
+          language: 'es',
+          max_bot_messages: 10,
+          max_total_messages: 20,
+        })
+      );
+
+      // Convertir respuesta a formato PDF/Doc
+      const exportReport: ExportReport = {
+        title: summary.title,
+        generatedAt: summary.generated_at,
+        introduction: summary.introduction,
+        mlTopics: summary.topics,
+        analysis: summary.analysis,
+        keyConcepts: summary.concepts,
+        conclusions: summary.conclusions,
+        recommendations: summary.recommendations,
+      };
+
+      const safeBaseName = this.buildSafeFileName(exportReport.title);
+
+      if (format === 'pdf') {
+        this.downloadSummaryAsPdf(exportReport, safeBaseName);
+      } else {
+        this.downloadSummaryAsDoc(exportReport, safeBaseName);
+      }
+
+      this.setMicStatus('Informe exportado correctamente.', 'success');
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.setMicStatus(`Error al generar resumen: ${errorMsg}`, 'error');
+    } finally {
+      this.isExportingSummary = false;
+      this.closeExportMenu();
+      this.cdr.detectChanges();
+    }
+  }
+
+  private prepareMessagesForSummary(): Array<{ role: 'user' | 'bot'; content: string }> {
+    if (this.messages.length === 0) return [];
+
+    // Filtrar mensajes de archivo y vacíos
+    const validMessages = this.messages.filter((msg) => !msg.isFile && msg.text?.trim());
+
+    if (validMessages.length === 0) return [];
+
+    // Tomar últimos 20 mensajes en total, pero máximo 10 de bot
+    const botMessages = validMessages.filter((msg) => msg.role === 'bot').length;
+    const maxBotToInclude = Math.min(botMessages, 10);
+
+    let botIncluded = 0;
+    const filtered = validMessages.filter((msg) => {
+      if (msg.role === 'bot') {
+        if (botIncluded < maxBotToInclude) {
+          botIncluded++;
+          return true;
+        }
+        return false;
+      }
+      return true;
+    });
+
+    // Tomar últimos 20
+    return filtered.slice(-20).map((msg) => ({
+      role: msg.role,
+      content: msg.text || '',
+    }));
+  }
+
+    logout() {
     if (this.profileImageObjectUrl) {
       URL.revokeObjectURL(this.profileImageObjectUrl);
       this.profileImageObjectUrl = null;
     }
     this.sessionService.clearSession();
     void this.navigateSafely('/login');
-  }
+    }
 
   @HostListener('document:click')
   onDocumentClick() {
     this.closeUserMenu();
+    this.closeExportMenu();
     // Cerrar dropdown del agente si se hace clic fuera
     if (this.providerDropdownOpen) {
       this.providerDropdownOpen = false;
@@ -659,6 +905,76 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (this.modelDropdownOpen) {
       this.modelDropdownOpen = false;
     }
+  }
+
+  onBotMarkdownClick(event: Event) {
+    const copyCodeTrigger = this.findCodeCopyTrigger(event);
+    if (copyCodeTrigger) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      event.stopPropagation();
+      void this.copyCodeBlockFromButton(copyCodeTrigger);
+      return;
+    }
+
+    const fallbackCodeText = this.findCodeTextFromHeaderClick(event);
+    if (!fallbackCodeText) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    event.stopPropagation();
+    void this.copyCodeTextWithFeedback(fallbackCodeText);
+  }
+
+  private findCodeCopyTrigger(event: Event): HTMLElement | null {
+    const codeCopySelector = '[data-action="copy-code"], .mc-code-copy-btn';
+
+    const targetNode = event.target as Node | null;
+    const targetElement = targetNode instanceof Element ? targetNode : targetNode?.parentElement;
+
+    const fromTarget = targetElement?.closest(codeCopySelector);
+    if (fromTarget instanceof HTMLElement) {
+      const isInsideCodeBlock = !!fromTarget.closest('.mc-code-block');
+      return isInsideCodeBlock ? fromTarget : null;
+    }
+
+    const path = event.composedPath?.() || [];
+    for (const node of path) {
+      if (!(node instanceof HTMLElement)) continue;
+      const candidate = node.closest?.(codeCopySelector);
+      if (candidate instanceof HTMLElement) {
+        const isInsideCodeBlock = !!candidate.closest('.mc-code-block');
+        if (isInsideCodeBlock) {
+          return candidate;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private findCodeTextFromHeaderClick(event: Event): string | null {
+    const targetNode = event.target as Node | null;
+    const targetElement = targetNode instanceof Element ? targetNode : targetNode?.parentElement;
+    if (!targetElement) return null;
+
+    const header = targetElement.closest('.mc-code-header, div');
+    if (!(header instanceof HTMLElement)) return null;
+
+    const headerText = (header.textContent || '').toLowerCase();
+    const copyIntent = headerText.includes('copiar') || headerText.includes('copy');
+    if (!copyIntent) return null;
+
+    const sameBlockPre = header.parentElement?.querySelector('pre code') as HTMLElement | null;
+    if (sameBlockPre?.textContent?.trim()) {
+      return sameBlockPre.textContent.trim();
+    }
+
+    const siblingPre = header.nextElementSibling?.matches('pre')
+      ? (header.nextElementSibling.querySelector('code') as HTMLElement | null)
+      : null;
+
+    return siblingPre?.textContent?.trim() || null;
   }
 
   @HostListener('document:keydown.escape')
@@ -672,6 +988,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       return;
     }
     this.closeUserMenu();
+    this.closeExportMenu();
     this.providerDropdownOpen = false;
     this.modelDropdownOpen = false;
   }
@@ -715,7 +1032,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   async sendMessage() {
     if (!this.userInput.trim() || this.isSending) return;
 
-    const shouldReplyWithAudio = this.lastInputWasVoice;
+    const voiceMode = this.lastInputWasVoice;
     this.lastInputWasVoice = false;
     const promptActual = this.userInput.trim();
 
@@ -728,6 +1045,10 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.resetMessageTextareaHeight();
     this.scrollToBottom();
 
+    const liveStreamEnabled = false;
+    const streamingBotIndex = liveStreamEnabled ? this.createStreamingBotMessage() : null;
+    let streamedReply = '';
+
     this.isSending = true;
 
     try {
@@ -737,32 +1058,110 @@ export class ChatComponent implements OnInit, OnDestroy {
       let botReply: string;
       if (this.activeChat?.id) {
         const previousChatId = this.activeChat.id;
-        try {
-          botReply = await this.sendMessageToExistingChat(previousChatId, promptActual, activeModel);
-        } catch (error) {
-          if (!this.isRetryableGatewayError(error)) {
-            throw error;
-          }
+        if (liveStreamEnabled) {
+          try {
+            botReply = await this.sendMessageToExistingChatStream(
+              previousChatId,
+              promptActual,
+              activeModel,
+              voiceMode,
+              (chunk) => {
+                streamedReply += chunk;
+                if (streamingBotIndex !== null) {
+                  this.updateStreamingBotMessage(streamingBotIndex, streamedReply);
+                }
+              },
+            );
+          } catch (error) {
+            const streamStatus =
+              error instanceof HttpErrorResponse
+                ? error.status
+                : typeof error === 'object' && error !== null && 'status' in error
+                  ? Number((error as { status?: number }).status)
+                  : null;
 
-          this.chatCache.delete(previousChatId);
-          this.activeChat.id = null;
-          this.setMicStatus(
-            'El servidor no pudo continuar este chat. Reintentando en una nueva conversación...',
-            'info',
-          );
-          botReply = await this.startChatInBackend(promptActual, activeModel);
+            if (
+              streamStatus === 404 ||
+              streamStatus === 405 ||
+              streamStatus === 501 ||
+              this.isRetryableGatewayError(error)
+            ) {
+              this.chatCache.delete(previousChatId);
+              this.activeChat.id = null;
+              this.setMicStatus(
+                'El stream no estuvo disponible. Reintentando en modo estándar...',
+                'info',
+              );
+              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          try {
+            botReply = await this.sendMessageToExistingChat(previousChatId, promptActual, activeModel, voiceMode);
+          } catch (error) {
+            if (!this.isRetryableGatewayError(error)) {
+              throw error;
+            }
+
+            this.chatCache.delete(previousChatId);
+            this.activeChat.id = null;
+            this.setMicStatus(
+              'El servidor no pudo continuar este chat. Reintentando en una nueva conversación...',
+              'info',
+            );
+            botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+          }
         }
       } else {
-        botReply = await this.startChatInBackend(promptActual, activeModel);
+        if (liveStreamEnabled) {
+          try {
+            botReply = await this.startChatInBackendStream(
+              promptActual,
+              activeModel,
+              voiceMode,
+              (chunk) => {
+                streamedReply += chunk;
+                if (streamingBotIndex !== null) {
+                  this.updateStreamingBotMessage(streamingBotIndex, streamedReply);
+                }
+              },
+            );
+          } catch (error) {
+            const streamStatus =
+              error instanceof HttpErrorResponse
+                ? error.status
+                : typeof error === 'object' && error !== null && 'status' in error
+                  ? Number((error as { status?: number }).status)
+                  : null;
+
+            if (streamStatus === 404 || streamStatus === 405 || streamStatus === 501) {
+              this.setMicStatus('El stream no estuvo disponible. Reintentando en modo estándar...', 'info');
+              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+        }
       }
 
-      this.addBotMessage(botReply);
-
-      if (shouldReplyWithAudio) {
-        this.speakBotReply(botReply);
+      if (streamingBotIndex !== null) {
+        this.updateStreamingBotMessage(streamingBotIndex, botReply);
+      } else {
+        this.addBotMessage(botReply);
       }
+
+      // La salida por voz se activa solo cuando el usuario pulsa el icono de escuchar.
     } catch (error) {
-      this.addBotMessage(this.buildSendErrorMessage(error));
+      const errorMessage = this.buildSendErrorMessage(error);
+      if (streamingBotIndex !== null) {
+        this.updateStreamingBotMessage(streamingBotIndex, errorMessage);
+      } else {
+        this.addBotMessage(errorMessage);
+      }
       this.setMicStatus('Error al conectar con el backend de chat.', 'error');
     } finally {
       this.isSending = false;
@@ -779,17 +1178,24 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private buildSendErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      if (error.status === 502 || error.status === 503 || error.status === 504) {
+    const status =
+      error instanceof HttpErrorResponse
+        ? error.status
+        : typeof error === 'object' && error !== null && 'status' in error
+          ? Number((error as { status?: number }).status)
+          : null;
+
+    if (status !== null) {
+      if (status === 502 || status === 503 || status === 504) {
         return 'El servicio de IA no esta disponible temporalmente (502/503/504). Intenta de nuevo en unos segundos.';
       }
-      if (error.status === 404) {
+      if (status === 404) {
         return 'Este chat ya no existe en el servidor. Crea un nuevo chat y vuelve a intentar.';
       }
-      if (error.status === 422) {
+      if (status === 422) {
         return 'El servidor rechazo el mensaje por validacion. Revisa modelo/agente e intenta nuevamente.';
       }
-      if (error.status === 0) {
+      if (status === 0) {
         return 'No hay conexion con el backend. Verifica internet o CORS del servidor.';
       }
     }
@@ -999,7 +1405,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.misChats.push(nuevoChat);
   }
 
-  private async startChatInBackend(firstMessage: string, model: string): Promise<string> {
+  private async startChatInBackend(firstMessage: string, model: string, voiceMode = false): Promise<string> {
     const response = await firstValueFrom(
       this.chatApiService.startChat({
         user_id: this.currentUsername,
@@ -1008,6 +1414,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         model,
         title: this.activeChat?.titulo || 'Nuevo chat',
         language: 'es',
+        voice_mode: voiceMode,
       }),
     );
 
@@ -1021,10 +1428,40 @@ export class ChatComponent implements OnInit, OnDestroy {
     return response.response;
   }
 
+  private async startChatInBackendStream(
+    firstMessage: string,
+    model: string,
+    voiceMode = false,
+    onChunk: (chunk: string) => void,
+  ): Promise<string> {
+    const result = await this.chatApiService.streamStartChat(
+      {
+        user_id: this.currentUsername,
+        message: firstMessage,
+        provider: this.selectedProvider,
+        model,
+        title: this.activeChat?.titulo || 'Nuevo chat',
+        language: 'es',
+        voice_mode: voiceMode,
+      },
+      onChunk,
+    );
+
+    if (this.activeChat) {
+      this.activeChat.id = result.chatId || this.activeChat.id;
+      this.activeChat.titulo = this.activeChat.titulo || 'Nuevo chat';
+      this.activeChat.provider = this.selectedProvider;
+      this.activeChat.model = model;
+    }
+
+    return result.text;
+  }
+
   private async sendMessageToExistingChat(
     chatId: string,
     message: string,
     model: string,
+    voiceMode = false,
   ): Promise<string> {
     const response = await firstValueFrom(
       this.chatApiService.sendMessage(chatId, {
@@ -1032,6 +1469,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         provider: this.selectedProvider,
         model,
         language: 'es',
+        voice_mode: voiceMode,
       }),
     );
 
@@ -1043,6 +1481,33 @@ export class ChatComponent implements OnInit, OnDestroy {
     return response.response;
   }
 
+  private async sendMessageToExistingChatStream(
+    chatId: string,
+    message: string,
+    model: string,
+    voiceMode = false,
+    onChunk: (chunk: string) => void,
+  ): Promise<string> {
+    const text = await this.chatApiService.streamSendMessage(
+      chatId,
+      {
+        message,
+        provider: this.selectedProvider,
+        model,
+        language: 'es',
+        voice_mode: voiceMode,
+      },
+      onChunk,
+    );
+
+    if (this.activeChat) {
+      this.activeChat.provider = this.selectedProvider;
+      this.activeChat.model = model;
+    }
+
+    return text;
+  }
+
   private addBotMessage(rawText: string) {
     this.messages.push({
       role: 'bot',
@@ -1051,8 +1516,71 @@ export class ChatComponent implements OnInit, OnDestroy {
     });
   }
 
+  async copyBotResponse(message: ChatMessage, index: number) {
+    const text = (message.text || '').trim();
+    if (!text) return;
+
+    try {
+      await globalThis.navigator?.clipboard?.writeText(text);
+      this.copiedMessageIndex = index;
+      if (this.copiedMessageTimeoutId) {
+        clearTimeout(this.copiedMessageTimeoutId);
+      }
+      this.copiedMessageTimeoutId = setTimeout(() => {
+        this.copiedMessageIndex = null;
+        this.copiedMessageTimeoutId = null;
+        this.cdr.detectChanges();
+      }, 1600);
+      this.setMicStatus('Respuesta copiada al portapapeles.', 'success');
+      this.cdr.detectChanges();
+    } catch {
+      this.setMicStatus('No se pudo copiar la respuesta.', 'error');
+      this.cdr.detectChanges();
+    }
+  }
+
+  toggleListenBotResponse(message: ChatMessage, index: number) {
+    const text = (message.text || '').trim();
+    if (!text) return;
+
+    if (this.isSpeechPlaying && this.speakingMessageIndex === index) {
+      this.stopBotSpeech();
+      this.setMicStatus('Audio detenido.', 'info');
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.speakingMessageIndex = index;
+    this.speakBotReply(text);
+  }
+
+  private createStreamingBotMessage() {
+    this.messages.push({
+      role: 'bot',
+      text: '',
+      html: '<p class="text-slate-400 dark:text-slate-500">Escribiendo...</p>',
+    });
+    return this.messages.length - 1;
+  }
+
+  private updateStreamingBotMessage(index: number, rawText: string) {
+    const current = this.messages[index];
+    if (!current) return;
+
+    this.messages[index] = {
+      ...current,
+      role: 'bot',
+      text: rawText,
+      html: this.formatBotContent(rawText || ' '),
+    };
+    this.cdr.detectChanges();
+    this.scrollToBottom();
+  }
+
   private formatBotContent(content: string): string {
-    const stepsAsBlocks = (content || '')
+    const normalizedContent = this.normalizeMarkdownForCode(content || '');
+
+    const stepsAsBlocks = normalizedContent
       .split('\n')
       .map((line) => {
         const trimmed = line.trim();
@@ -1068,7 +1596,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       gfm: true,
     }) as string;
 
-    return parsed
+    const styled = parsed
       .replaceAll('<h1>', '<h1 class="text-lg sm:text-xl font-bold mt-2 mb-2">')
       .replaceAll('<h2>', '<h2 class="text-base sm:text-lg font-semibold mt-2 mb-2">')
       .replaceAll('<h3>', '<h3 class="text-sm sm:text-base font-semibold mt-2 mb-1">')
@@ -1079,6 +1607,932 @@ export class ChatComponent implements OnInit, OnDestroy {
       .replaceAll('<code>', '<code class="bg-slate-200/80 text-slate-800 dark:bg-slate-700 dark:text-slate-100 rounded px-1 py-0.5 text-[0.9em]">')
       .replaceAll('<blockquote>', '<blockquote class="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 rounded-r-xl px-3 py-2 my-2">')
       .replaceAll('<a ', '<a class="text-blue-600 dark:text-blue-300 underline break-all" target="_blank" rel="noopener noreferrer" ');
+
+    return this.decorateCodeBlocks(styled);
+  }
+
+  private normalizeMarkdownForCode(content: string): string {
+    const source = (content || '').replace(/\\n/g, '\n').trim();
+    if (!source) return '';
+    if (source.includes('```')) return source;
+
+    const lines = source.split('\n');
+    const codeLikeLines = lines.filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      if (/^(const|let|var|function|class|def|import\s+|from\s+|if\s*\(|for\s*\(|while\s*\(|return\b|public\s+|private\s+|SELECT\b|INSERT\b|UPDATE\b|DELETE\b)/i.test(trimmed)) {
+        return true;
+      }
+      return /[{};=<>]/.test(trimmed);
+    }).length;
+
+    if (codeLikeLines >= 3 && lines.length <= 60) {
+      return `\`\`\`text\n${source}\n\`\`\``;
+    }
+
+    return source;
+  }
+
+  private decorateCodeBlocks(html: string): string {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const root = doc.body.firstElementChild as HTMLElement | null;
+    if (!root) return html;
+
+    root.querySelectorAll('pre > code').forEach((codeElement) => {
+      const pre = codeElement.parentElement as HTMLElement | null;
+      if (!pre) return;
+
+      const languageMatch = codeElement.className.match(/language-([a-z0-9+#.-]+)/i);
+      const declaredLanguage = (languageMatch?.[1] || 'text').toLowerCase();
+      const rawCode = codeElement.textContent || '';
+      const highlighted = this.highlightCodeText(rawCode, declaredLanguage);
+      codeElement.innerHTML = highlighted.html;
+
+      const languageLabel = (highlighted.language || declaredLanguage || 'codigo').toLowerCase();
+
+      const wrapper = doc.createElement('div');
+      wrapper.className = 'mc-code-block';
+
+      const header = doc.createElement('div');
+      header.className = 'mc-code-header';
+
+      const label = doc.createElement('span');
+      label.className = 'mc-code-lang';
+      label.textContent = languageLabel;
+
+      const copyButton = doc.createElement('span');
+      copyButton.className = 'mc-code-copy-btn';
+      copyButton.setAttribute('data-action', 'copy-code');
+      copyButton.setAttribute('role', 'button');
+      copyButton.setAttribute('tabindex', '0');
+      copyButton.innerHTML = '<span class="mc-code-copy-icon" aria-hidden="true">⧉</span><span>Copiar codigo</span>';
+      copyButton.setAttribute('aria-label', 'Copiar bloque de codigo');
+
+      header.appendChild(label);
+      header.appendChild(copyButton);
+
+      pre.classList.add('mc-code-pre');
+      codeElement.classList.add('mc-code-content');
+
+      pre.parentNode?.insertBefore(wrapper, pre);
+      wrapper.appendChild(header);
+      wrapper.appendChild(pre);
+    });
+
+    return root.innerHTML;
+  }
+
+  private highlightCodeText(rawCode: string, languageHint: string): { html: string; language: string } {
+    const escaped = this.escapeHtml(rawCode || '');
+    const placeholders: string[] = [];
+
+    const stash = (source: string, regexp: RegExp, className: string) =>
+      source.replace(regexp, (match) => {
+        const token = `@@TOK${placeholders.length}@@`;
+        placeholders.push(`<span class="hljs-${className}">${match}</span>`);
+        return token;
+      });
+
+    let html = escaped;
+    html = stash(html, /\/\*[\s\S]*?\*\//g, 'comment');
+    html = stash(html, /(^|\s)(#.*)$/gm, 'comment');
+    html = stash(html, /(^|\s)(\/\/.*)$/gm, 'comment');
+    html = stash(html, /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, 'string');
+
+    html = html.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="hljs-number">$1</span>');
+    html = html.replace(
+      /\b(const|let|var|function|class|return|if|else|for|while|switch|case|break|continue|try|catch|finally|new|import|from|export|default|async|await|public|private|protected|static|def|elif|pass|True|False|None|SELECT|INSERT|UPDATE|DELETE|WHERE|JOIN|ORDER|GROUP|BY|LIMIT)\b/g,
+      '<span class="hljs-keyword">$1</span>',
+    );
+
+    html = html.replace(/@@TOK(\d+)@@/g, (_match: string, index: string) => placeholders[Number(index)] || '');
+    return { html, language: languageHint || 'text' };
+  }
+
+  private escapeHtml(value: string): string {
+    return (value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private async copyCodeBlockFromButton(buttonElement: HTMLElement) {
+    const button = buttonElement;
+    const codeBlock = button.closest('.mc-code-block') as HTMLElement | null;
+    const codeContent =
+      (codeBlock?.querySelector('.mc-code-content') as HTMLElement | null) ||
+      (codeBlock?.querySelector('pre code') as HTMLElement | null) ||
+      (button.closest('.mc-code-header')?.nextElementSibling?.querySelector('code') as HTMLElement | null);
+    const codeText = (codeContent?.textContent || '').trim();
+    if (!codeText) return;
+
+    const originalHtml = button.innerHTML || '<span class="mc-code-copy-icon" aria-hidden="true">⧉</span><span>Copiar codigo</span>';
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = true;
+    } else {
+      button.setAttribute('aria-disabled', 'true');
+    }
+    button.innerHTML = '<span class="mc-code-copy-icon" aria-hidden="true">…</span><span>Copiando...</span>';
+
+    try {
+      await this.copyTextToClipboard(codeText);
+      button.innerHTML = '<span class="mc-code-copy-icon" aria-hidden="true">✓</span><span>Copiado</span>';
+      button.classList.add('is-copied');
+      this.setMicStatus('Código copiado al portapapeles.', 'success');
+    } catch {
+      button.innerHTML = '<span class="mc-code-copy-icon" aria-hidden="true">!</span><span>Error</span>';
+      this.setMicStatus('No se pudo copiar el bloque de código.', 'error');
+    } finally {
+      this.cdr.detectChanges();
+      setTimeout(() => {
+        if (button instanceof HTMLButtonElement) {
+          button.disabled = false;
+        } else {
+          button.removeAttribute('aria-disabled');
+        }
+        button.innerHTML = originalHtml;
+        button.classList.remove('is-copied');
+      }, 1200);
+    }
+  }
+
+  private async copyCodeTextWithFeedback(codeText: string) {
+    if (!codeText.trim()) return;
+    try {
+      await this.copyTextToClipboard(codeText);
+      this.setMicStatus('Código copiado al portapapeles.', 'success');
+    } catch {
+      this.setMicStatus('No se pudo copiar el bloque de código.', 'error');
+    } finally {
+      this.cdr.detectChanges();
+    }
+  }
+
+  private async copyTextToClipboard(text: string) {
+    const nav = globalThis.navigator;
+    if (globalThis.isSecureContext && nav?.clipboard?.writeText) {
+      await nav.clipboard.writeText(text);
+      return;
+    }
+
+    // Fallback legacy para navegadores sin Clipboard API disponible.
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    helper.style.position = 'fixed';
+    helper.style.left = '-9999px';
+    helper.style.top = '0';
+    helper.style.opacity = '0';
+    helper.setAttribute('readonly', 'true');
+    document.body.appendChild(helper);
+    helper.focus();
+    helper.select();
+    helper.setSelectionRange(0, helper.value.length);
+
+    const copied = document.execCommand('copy');
+    document.body.removeChild(helper);
+    if (!copied) {
+      throw new Error('COPY_FAILED');
+    }
+  }
+
+  private buildExecutiveReport(): ExportReport | null {
+    const relevantMessages = this.messages.filter((message) => !message.isFile && !!message.text?.trim());
+    if (relevantMessages.length === 0) return null;
+
+    const cleanedTexts = relevantMessages
+      .map((message) => this.stripMarkdownForExport(message.text || ''))
+      .filter((text) => text.length > 0);
+
+    if (cleanedTexts.length === 0) return null;
+
+    const combined = cleanedTexts.join(' ');
+    const insights = this.extractRankedInsights(relevantMessages);
+    const topicLabels = this.detectConversationTopics(combined);
+    const mlTopics = this.detectMlTopics(combined);
+    const topTopics = topicLabels.slice(0, 3);
+    const mainSubject = this.buildMainSubject(relevantMessages, topTopics);
+
+    const analysis = insights
+      .slice(0, 12)
+      .map((item) => this.synthesizeAnalysisPoint(item.text))
+      .filter((text) => !!text)
+      .filter((text, index, all) => all.findIndex((candidate) => this.normalizeForDedup(candidate) === this.normalizeForDedup(text)) === index)
+      .slice(0, 6);
+
+    const recommendations = insights
+      .filter((item) => item.isRecommendation)
+      .slice(0, 10)
+      .map((item) => this.synthesizeRecommendationPoint(item.text))
+      .filter((text) => !!text)
+      .filter((text, index, all) => all.findIndex((candidate) => this.normalizeForDedup(candidate) === this.normalizeForDedup(text)) === index)
+      .slice(0, 5);
+
+    const keyConcepts = this.extractKeyConceptsWithQuotes(relevantMessages).slice(0, 5);
+
+    const title = this.activeChat?.titulo?.trim() || 'Conversacion sin titulo';
+    const userMessages = relevantMessages.filter((message) => message.role === 'user').length;
+    const botMessages = relevantMessages.filter((message) => message.role === 'bot').length;
+    const objectiveHint = this.pickObjectiveHint(combined);
+    const issueHint = this.pickIssueHint(combined);
+
+    const introduction = [
+      `Este informe resume de forma ejecutiva los temas trabajados en la conversacion sobre ${mainSubject}, dentro del enfoque de ${this.activeCareerLabel}.`,
+      objectiveHint,
+      `El analisis considera ${userMessages} intervenciones del usuario y ${botMessages} respuestas del asistente, priorizando acuerdos y conceptos de mayor impacto.`,
+    ].join(' ');
+
+    const conclusions = [
+      mlTopics.length > 0
+        ? `La conversacion abordo conceptos de machine learning con enfasis en ${mlTopics.slice(0, 2).join(' y ')}.`
+        : `Se consolida una linea de trabajo centrada en ${mainSubject}, con foco en claridad conceptual y consistencia del enfoque.`,
+      issueHint,
+      `La conversacion deja una base suficiente para ejecutar mejoras priorizadas sin replicar pasos ya discutidos.`,
+    ];
+
+    return {
+      title,
+      generatedAt: new Date().toLocaleString('es-ES'),
+      introduction,
+      mlTopics: mlTopics.length > 0 ? mlTopics : topTopics,
+      analysis: analysis.length > 0 ? analysis : ['No se detectaron puntos suficientes para elaborar el analisis.'],
+      keyConcepts: keyConcepts.length > 0 ? keyConcepts : ['No se detectaron conceptos textuales suficientes en esta conversacion.'],
+      conclusions,
+      recommendations: recommendations.length > 0 ? recommendations : ['No se detectaron recomendaciones accionables en esta conversacion.'],
+    };
+  }
+
+  private synthesizeAnalysisPoint(source: string): string {
+    const text = source.toLowerCase();
+
+    if (/(salud|medicina|enfermeria|diagnostico|paciente|tratamiento|farmacologia|epidemiologia)/i.test(text)) {
+      return 'Se abordaron conceptos del area de salud, priorizando comprension de procesos, criterios de evaluacion y toma de decisiones informada.';
+    }
+    if (/(derecho|juridico|norma|ley|constitucion|contrato|jurisprudencia|penal|civil|laboral)/i.test(text)) {
+      return 'Se trabajaron fundamentos juridicos con enfoque en interpretacion normativa y aplicacion de criterios argumentativos.';
+    }
+    if (/(educacion|pedagogia|didactica|curriculo|aprendizaje|evaluacion|docente|estudiante)/i.test(text)) {
+      return 'Se analizaron elementos pedagogicos y didacticos para fortalecer la planificacion, la evaluacion y el logro de aprendizaje.';
+    }
+    if (/(economia|finanzas|contabilidad|marketing|administracion|empresa|costos|presupuesto|estrategia comercial)/i.test(text)) {
+      return 'Se revisaron nociones de gestion y analisis economico para sustentar decisiones con mayor criterio tecnico y organizacional.';
+    }
+    if (/(psicologia|sociologia|historia|filosofia|comunicacion|literatura|investigacion|metodologia)/i.test(text)) {
+      return 'Se consolidaron enfoques de ciencias sociales y humanidades, enfatizando interpretacion, contexto y rigor conceptual.';
+    }
+    if (/(machine learning|aprendizaje automatico|aprendizaje supervisado|aprendizaje no supervisado|clasificacion|regresion|feature|caracteristica|dataset|entrenamiento|overfitting|underfitting|precision|recall|f1|validacion cruzada)/i.test(text)) {
+      return 'Se explicaron conceptos clave de machine learning, incluyendo preparacion de datos, seleccion de variables y criterios de evaluacion del modelo.';
+    }
+    if (/(clase|componente|servicio|interfaz|modulo)/i.test(text)) {
+      return 'Se reviso la organizacion de componentes y servicios para mantener responsabilidades claras y facilitar mantenimiento.';
+    }
+    if (/(html|css|ui|interfaz|boton|menu|pantalla)/i.test(text)) {
+      return 'Se priorizo la experiencia de usuario en la interfaz, asegurando interacciones mas claras y predecibles.';
+    }
+    if (/(pdf|doc|informe|export|descarga)/i.test(text)) {
+      return 'Se definio un esquema de exportacion de informe orientado a revision ejecutiva y lectura rapida.';
+    }
+    if (/(error|falla|validacion|no funciona|bloqueo)/i.test(text)) {
+      return 'Se identificaron riesgos operativos y se aplicaron criterios de validacion para reducir fallos en flujo productivo.';
+    }
+    if (/(api|backend|endpoint|integracion|guard|interceptor)/i.test(text)) {
+      return 'Se evaluo la integracion con backend para sostener continuidad funcional y trazabilidad de operaciones.';
+    }
+
+    return this.buildGeneralAnalysisFromSource(source);
+  }
+
+  private buildGeneralAnalysisFromSource(source: string): string {
+    const clean = source
+      .replace(/\s+/g, ' ')
+      .replace(/^[A-ZÁÉÍÓÚÑ][^\s]*\s+/, (match) => match)
+      .trim();
+
+    if (!clean) {
+      return 'Se consolidaron definiciones clave para mantener coherencia en el desarrollo del tema.';
+    }
+
+    const normalized = /[.!?]$/.test(clean) ? clean : `${clean}.`;
+    const lead = normalized.charAt(0).toLowerCase() + normalized.slice(1);
+    return `Se abordo ${lead}`;
+  }
+
+  private synthesizeRecommendationPoint(source: string): string {
+    const text = source.toLowerCase();
+
+    if (/(salud|medicina|enfermeria|diagnostico|paciente|tratamiento|farmacologia|epidemiologia)/i.test(text)) {
+      return 'Estructurar un plan de estudio o aplicacion con protocolos claros, criterios de evidencia y seguimiento de resultados en salud.';
+    }
+    if (/(derecho|juridico|norma|ley|constitucion|contrato|jurisprudencia|penal|civil|laboral)/i.test(text)) {
+      return 'Organizar las fuentes normativas por jerarquia y complementar con casos para fortalecer la argumentacion juridica.';
+    }
+    if (/(educacion|pedagogia|didactica|curriculo|aprendizaje|evaluacion|docente|estudiante)/i.test(text)) {
+      return 'Definir objetivos de aprendizaje, instrumentos de evaluacion y estrategias didacticas alineadas al contexto educativo.';
+    }
+    if (/(economia|finanzas|contabilidad|marketing|administracion|empresa|costos|presupuesto|estrategia comercial)/i.test(text)) {
+      return 'Aplicar indicadores de seguimiento y comparacion de escenarios para mejorar decisiones de gestion y sostenibilidad.';
+    }
+    if (/(psicologia|sociologia|historia|filosofia|comunicacion|literatura|investigacion|metodologia)/i.test(text)) {
+      return 'Fortalecer el marco teorico y la metodologia de analisis para sostener conclusiones con mayor solidez academica.';
+    }
+    if (/(machine learning|aprendizaje automatico|aprendizaje supervisado|aprendizaje no supervisado|clasificacion|regresion|feature|caracteristica|dataset|entrenamiento|overfitting|underfitting|precision|recall|f1|validacion cruzada)/i.test(text)) {
+      return 'Definir un flujo de ML con datos de entrenamiento/validacion, metricas claras y control de sobreajuste para mejorar la calidad del modelo.';
+    }
+    if (/(clase|componente|servicio|interfaz|modulo)/i.test(text)) {
+      return 'Definir y documentar responsabilidades por clase, componente y servicio para evitar acoplamiento innecesario.';
+    }
+    if (/(html|css|ui|interfaz|boton|menu|pantalla)/i.test(text)) {
+      return 'Estandarizar criterios de interfaz para mantener consistencia visual y reducir friccion de uso.';
+    }
+    if (/(pdf|doc|informe|export|descarga)/i.test(text)) {
+      return 'Validar periodicamente el formato de informe para asegurar que el contenido mantenga claridad y valor ejecutivo.';
+    }
+    if (/(error|falla|validacion|no funciona|bloqueo)/i.test(text)) {
+      return 'Fortalecer validaciones preventivas y manejo de errores para mejorar estabilidad operativa.';
+    }
+    if (/(api|backend|endpoint|integracion|guard|interceptor)/i.test(text)) {
+      return 'Reforzar contratos de integracion y monitoreo de endpoints para minimizar incidencias en produccion.';
+    }
+
+    return 'Mantener seguimiento de acuerdos tecnicos y funcionales para asegurar continuidad de implementacion.';
+  }
+
+  private extractRankedInsights(messages: ChatMessage[]): Array<{ text: string; score: number; isRecommendation: boolean }> {
+    const recommendationRegex =
+      /(recomienda|debe|conviene|sugerimos|aplicar|refactor|separar|extraer|renombrar|validar|optimizar|usar|migrar|actualizar|mejorar)/i;
+    const technicalRegex =
+      /(clase|componente|servicio|metodo|funcion|modulo|interfaz|html|css|typescript|angular|api|guard|interceptor|ruta|modelo|machine learning|aprendizaje automatico|clasificacion|regresion|dataset|feature|entrenamiento|validacion cruzada|precision|recall|f1|overfitting|underfitting)/i;
+    const conceptualRegex =
+      /(concepto|teoria|fundamento|principio|enfoque|estrategia|proceso|analisis|interpretacion|marco|modelo|metodologia|criterio|hipotesis|sesgo|varianza|generalizacion)/i;
+
+    const candidates: Array<{ text: string; score: number; isRecommendation: boolean }> = [];
+
+    messages.forEach((message) => {
+      const cleaned = this.stripMarkdownForExport(message.text || '');
+      if (!cleaned) return;
+
+      const parts = cleaned
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((part) => this.toCoherentSentence(part))
+        .filter((part) => !!part);
+
+      parts.forEach((part) => {
+        const isRecommendation = recommendationRegex.test(part);
+        const technicalBoost = technicalRegex.test(part) ? 2 : 0;
+        const conceptualBoost = conceptualRegex.test(part) ? 2 : 0;
+        const roleBoost = message.role === 'user' ? 2 : 1;
+        const recBoost = isRecommendation ? 3 : 0;
+        const sizeBoost = part.length >= 45 && part.length <= 240 ? 1 : 0;
+        const score = roleBoost + technicalBoost + conceptualBoost + recBoost + sizeBoost;
+
+        candidates.push({ text: part, score, isRecommendation });
+      });
+    });
+
+    const dedup = new Set<string>();
+    return candidates
+      .sort((a, b) => b.score - a.score)
+      .filter((item) => {
+        const normalized = this.normalizeForDedup(item.text);
+        if (!normalized || dedup.has(normalized)) return false;
+        dedup.add(normalized);
+        return true;
+      });
+  }
+
+  private toCoherentSentence(raw: string): string {
+    const base = (raw || '')
+      .replace(/^[-*\d.)\s]+/, '')
+      .replace(/^\s*(y|pero|ademas|entonces|luego|tambien)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!base || base.length < 18) return '';
+    if (/^(detalles clave consolidados|resumen general en lenguaje claro|proximo paso recomendado)$/i.test(base)) {
+      return '';
+    }
+
+    const firstUpper = base.charAt(0).toUpperCase() + base.slice(1);
+    const finalText = /[.!?]$/.test(firstUpper) ? firstUpper : `${firstUpper}.`;
+
+    const words = finalText.split(' ').filter(Boolean).length;
+    return words < 5 ? '' : finalText;
+  }
+
+  private detectConversationTopics(text: string): string[] {
+    const topics = this.activeReportTaxonomy.conversationTopics.map((rule) => ({
+      label: rule.label,
+      score: this.hasKeywordMatch(text, rule.keywords) ? 1 : 0,
+    }));
+
+    const rankedTopics = topics.filter((item) => item.score > 0);
+    rankedTopics.sort((a, b) => b.score - a.score);
+    const sorted = rankedTopics.map((item) => item.label);
+
+    return sorted.length > 0 ? sorted : ['mejoras funcionales del asistente'];
+  }
+
+  private detectMlTopics(text: string): string[] {
+    return this.activeReportTaxonomy.focusTopics
+      .filter((rule) => this.hasKeywordMatch(text, rule.keywords))
+      .map((rule) => rule.label)
+      .slice(0, 6);
+  }
+
+  private extractKeyConceptsWithQuotes(messages: ChatMessage[]): string[] {
+    const domainRules = this.activeReportTaxonomy.keyConceptDomains;
+
+    // Agrupa conceptos por dominio y cuenta ocurrencias
+    const conceptsByDomain = new Map<string, Array<{ concept: string; score: number; occurrences: number }>>();
+
+    messages.forEach((message) => {
+      const cleaned = this.stripMarkdownForExport(message.text || '');
+      if (!cleaned) return;
+
+      const parts = cleaned
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((part) => part.trim())
+        .filter((part) => part.length >= 20 && part.length <= 500);
+
+      parts.forEach((part) => {
+        const matchedDomains = domainRules
+          .filter((rule) => this.hasKeywordMatch(part, rule.keywords))
+          .map((rule) => rule.label);
+
+        // Solo procesa si hay coincidencia con dominio; no fallback a fragmentos crudos
+        if (matchedDomains.length === 0) return;
+
+        matchedDomains.forEach((domainLabel) => {
+          if (!conceptsByDomain.has(domainLabel)) {
+            conceptsByDomain.set(domainLabel, []);
+          }
+
+          const domainConcepts = conceptsByDomain.get(domainLabel)!;
+          const existing = domainConcepts.find((item) => this.normalizeForDedup(item.concept) === this.normalizeForDedup(domainLabel));
+          if (existing) {
+            existing.occurrences += 1;
+            existing.score += message.role === 'user' ? 2 : 1;
+          } else {
+            domainConcepts.push({
+              concept: domainLabel,
+              score: message.role === 'user' ? 2 : 1,
+              occurrences: 1,
+            });
+          }
+        });
+      });
+    });
+
+    // Consolida conceptos por dominio, sin fragmentos crudos
+    const result: string[] = [];
+    const processed = new Set<string>();
+
+    conceptsByDomain.forEach((concepts, domainLabel) => {
+      concepts.sort((a, b) => b.score - a.score || b.occurrences - a.occurrences);
+
+      concepts.slice(0, 3).forEach((item) => {
+        const normalized = this.normalizeForDedup(item.concept);
+        if (processed.has(normalized)) return;
+        processed.add(normalized);
+
+        const conceptLine = `${item.concept} (${item.occurrences}x detectado)`;
+        result.push(conceptLine);
+      });
+    });
+
+    return result.slice(0, 8);
+  }
+
+  private inferConceptLabelFromSentence(sentence: string): string {
+    const normalized = this.normalizeForDedup(sentence);
+    if (!normalized) return '';
+
+    const tokens = normalized
+      .split(' ')
+      .filter((token) => token.length >= 5)
+      .filter((token) => !this.isStopWordForConcept(token));
+
+    if (tokens.length === 0) return '';
+    return tokens.slice(0, 2).join(' ');
+  }
+
+  private hasKeywordMatch(text: string, keywords: string[]): boolean {
+    const normalizedText = this.normalizeForDedup(text);
+    if (!normalizedText) return false;
+
+    return keywords.some((keyword) => {
+      const normalizedKeyword = this.normalizeForDedup(keyword);
+      return !!normalizedKeyword && normalizedText.includes(normalizedKeyword);
+    });
+  }
+
+  private parseTaxonomyRules(value: unknown): TaxonomyRule[] | null {
+    if (!Array.isArray(value)) return null;
+
+    const rules = value
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const rawLabel = (item as { label?: unknown }).label;
+        const rawKeywords = (item as { keywords?: unknown }).keywords;
+        if (typeof rawLabel !== 'string' || !Array.isArray(rawKeywords)) return null;
+
+        const keywords = rawKeywords
+          .filter((entry): entry is string => typeof entry === 'string')
+          .map((entry) => entry.trim())
+          .filter((entry) => !!entry);
+
+        if (!rawLabel.trim() || keywords.length === 0) return null;
+        return { label: rawLabel.trim(), keywords };
+      })
+      .filter((entry): entry is TaxonomyRule => !!entry);
+
+    return rules.length > 0 ? rules : null;
+  }
+
+  private parseTaxonomyProfile(value: unknown): CareerTaxonomyProfile | null {
+    if (!value || typeof value !== 'object') return null;
+
+    const record = value as Record<string, unknown>;
+    const displayName = typeof record['displayName'] === 'string' ? record['displayName'].trim() : '';
+    const aliasesRaw = Array.isArray(record['aliases']) ? record['aliases'] : [];
+    const aliases = aliasesRaw
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter((entry) => !!entry);
+
+    const conversationTopics = this.parseTaxonomyRules(record['conversationTopics']);
+    const focusTopics = this.parseTaxonomyRules(record['focusTopics']);
+    const keyConceptDomains = this.parseTaxonomyRules(record['keyConceptDomains']);
+
+    if (!displayName || !conversationTopics || !focusTopics || !keyConceptDomains) return null;
+
+    return {
+      displayName,
+      aliases,
+      conversationTopics,
+      focusTopics,
+      keyConceptDomains,
+    };
+  }
+
+  private normalizeReportTaxonomyDataset(payload: unknown): ReportTaxonomyDataset | null {
+    // Compatibilidad con formato legacy (sin carreras): lo mapeamos a "general".
+    const legacyConversation = this.parseTaxonomyRules((payload as Record<string, unknown>)?.['conversationTopics']);
+    const legacyFocus = this.parseTaxonomyRules((payload as Record<string, unknown>)?.['focusTopics']);
+    const legacyConcepts = this.parseTaxonomyRules((payload as Record<string, unknown>)?.['keyConceptDomains']);
+    if (legacyConversation && legacyFocus && legacyConcepts) {
+      return {
+        defaultCareerKey: 'general',
+        careers: {
+          general: {
+            displayName: 'General multidisciplinario',
+            aliases: ['general', 'multidisciplinario'],
+            conversationTopics: legacyConversation,
+            focusTopics: legacyFocus,
+            keyConceptDomains: legacyConcepts,
+          },
+        },
+      };
+    }
+
+    if (!payload || typeof payload !== 'object') return null;
+    const record = payload as Record<string, unknown>;
+    const defaultCareerRaw = typeof record['defaultCareerKey'] === 'string' ? record['defaultCareerKey'].trim() : '';
+    const careersRaw = record['careers'];
+    if (!defaultCareerRaw || !careersRaw || typeof careersRaw !== 'object' || Array.isArray(careersRaw)) return null;
+
+    const careers = Object.entries(careersRaw as Record<string, unknown>).reduce<Record<string, CareerTaxonomyProfile>>((acc, [careerKey, value]) => {
+      const profile = this.parseTaxonomyProfile(value);
+      if (!profile) return acc;
+
+      const normalizedKey = this.normalizeForDedup(careerKey).replace(/\s+/g, '_');
+      if (!normalizedKey) return acc;
+
+      const aliases = profile.aliases.length > 0 ? profile.aliases : [careerKey, profile.displayName];
+      acc[normalizedKey] = {
+        ...profile,
+        aliases,
+      };
+      return acc;
+    }, {});
+
+    const defaultCareerKey = this.normalizeForDedup(defaultCareerRaw).replace(/\s+/g, '_');
+    if (!defaultCareerKey || !careers[defaultCareerKey]) return null;
+
+    return {
+      defaultCareerKey,
+      careers,
+    };
+  }
+
+  private resolveCareerProfile(careerRaw: string): CareerTaxonomyProfile {
+    const normalizedCareer = this.normalizeForDedup(careerRaw);
+    const defaultProfile =
+      this.reportTaxonomyDataset.careers[this.reportTaxonomyDataset.defaultCareerKey] ||
+      DEFAULT_REPORT_TAXONOMY_DATASET.careers[DEFAULT_REPORT_TAXONOMY_DATASET.defaultCareerKey];
+
+    if (!normalizedCareer) return defaultProfile;
+
+    for (const [careerKey, profile] of Object.entries(this.reportTaxonomyDataset.careers)) {
+      const normalizedKey = this.normalizeForDedup(careerKey);
+      if (normalizedKey === normalizedCareer) return profile;
+
+      const matchesAlias = profile.aliases.some((alias) => {
+        const normalizedAlias = this.normalizeForDedup(alias);
+        return !!normalizedAlias && (
+          normalizedCareer.includes(normalizedAlias) ||
+          normalizedAlias.includes(normalizedCareer)
+        );
+      });
+
+      if (matchesAlias) return profile;
+    }
+
+    return defaultProfile;
+  }
+
+  private applyCareerScopedTaxonomy(careerRaw: string) {
+    const profile = this.resolveCareerProfile(careerRaw);
+    this.activeReportTaxonomy = {
+      conversationTopics: [...profile.conversationTopics],
+      focusTopics: [...profile.focusTopics],
+      keyConceptDomains: [...profile.keyConceptDomains],
+    };
+    this.activeCareerLabel = profile.displayName;
+  }
+
+  private async loadReportTaxonomyConfig() {
+    try {
+      const response = await fetch(this.reportTaxonomyUrl, { cache: 'no-cache' });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const normalized = this.normalizeReportTaxonomyDataset(payload);
+      if (!normalized) return;
+
+      this.reportTaxonomyDataset = normalized;
+      this.applyCareerScopedTaxonomy(this.currentCareer);
+    } catch {
+      // Si falla la carga externa, se mantiene la configuracion local por defecto.
+    }
+  }
+
+  private isStopWordForConcept(token: string): boolean {
+    const stopWords = new Set([
+      'sobre', 'desde', 'hacia', 'entre', 'porque', 'cuando', 'donde', 'como', 'hacer', 'puedes',
+      'quiero', 'necesito', 'tiene', 'tener', 'seria', 'estas', 'estos', 'esta', 'este', 'tambien',
+      'mismo', 'misma', 'muchos', 'muchas', 'detalle', 'detalles', 'texto', 'informe', 'resumen',
+      'claro', 'formal', 'profesional', 'usuario', 'asistente', 'chat', 'chats', 'conversacion',
+      'tema', 'temas', 'cosas', 'algo', 'algunas', 'varias', 'parte', 'partes',
+    ]);
+    return stopWords.has(token);
+  }
+
+  private truncateForConceptEvidence(value: string, maxLength = 170): string {
+    const clean = (value || '').replace(/\s+/g, ' ').trim();
+    if (clean.length <= maxLength) return clean;
+    return `${clean.slice(0, maxLength - 3).trim()}...`;
+  }
+
+  private pickObjectiveHint(text: string): string {
+    const normalized = text.toLowerCase();
+    if (/(salud|medicina|derecho|educacion|pedagogia|economia|finanzas|administracion|psicologia|sociologia|historia|filosofia|ingenieria|tecnologia|investigacion|metodologia)/i.test(normalized)) {
+      return 'El objetivo principal fue aclarar conceptos disciplinares y criterios practicos aplicables al campo academico tratado.';
+    }
+    if (/(resumen|informe|entendible|lenguaje claro)/i.test(normalized)) {
+      return 'El objetivo principal fue obtener un resultado de salida claro, breve y facil de entender.';
+    }
+    return 'El objetivo principal fue ordenar la informacion clave para facilitar su uso posterior.';
+  }
+
+  private pickIssueHint(text: string): string {
+    const normalized = text.toLowerCase();
+    if (/(error|no funciona|falla|problema|no aparece)/i.test(normalized)) {
+      return 'Durante la conversacion se identificaron puntos de fallo y se enfocaron ajustes para mejorar la confiabilidad.';
+    }
+    if (/(investigacion|metodologia|criterio|evidencia|evaluacion|analisis|decision)/i.test(normalized)) {
+      return 'Se identificaron criterios de analisis y evaluacion para mejorar la calidad de decisiones en el tema tratado.';
+    }
+    return 'Se consolidaron decisiones para evitar redundancia y priorizar informacion necesaria.';
+  }
+
+  private stripMarkdownForExport(text: string): string {
+    return (text || '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private normalizeForDedup(text: string): string {
+    return (text || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private buildMainSubject(messages: ChatMessage[], fallbackTopics: string[]): string {
+    const userCorpus = messages
+      .filter((message) => message.role === 'user')
+      .map((message) => this.stripMarkdownForExport(message.text || ''))
+      .join(' ')
+      .toLowerCase();
+
+    const tokens = userCorpus
+      .split(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 5);
+
+    const stopWords = new Set([
+      'sobre', 'desde', 'hacia', 'entre', 'porque', 'cuando', 'donde', 'como', 'hacer', 'puedes',
+      'quiero', 'necesito', 'tiene', 'tener', 'seria', 'estas', 'estos', 'esta', 'este', 'tambien',
+      'mismo', 'misma', 'muchos', 'muchas', 'detalle', 'detalles', 'texto', 'informe', 'resumen',
+      'claro', 'formal', 'profesional', 'usuario', 'asistente', 'chat', 'chats', 'conversacion',
+    ]);
+
+    const counts = new Map<string, number>();
+    tokens.forEach((token) => {
+      if (stopWords.has(token)) return;
+      counts.set(token, (counts.get(token) || 0) + 1);
+    });
+
+    const top = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([token]) => token);
+
+    if (top.length > 0) {
+      return top.join(', ');
+    }
+
+    return fallbackTopics.length > 0 ? fallbackTopics.join(', ') : 'los temas principales tratados';
+  }
+
+  // ======================= EXPORTACION =======================
+  private downloadSummaryAsPdf(report: ExportReport, baseFileName: string) {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const margin = 40;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    const ensureSpace = (required = 24) => {
+      if (y + required <= pageHeight - margin) return;
+      doc.addPage();
+      y = margin;
+    };
+
+    const writeHeading = (text: string) => {
+      ensureSpace(28);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(text, margin, y);
+      y += 20;
+    };
+
+    const writeParagraph = (text: string, bullet = false) => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const prefix = bullet ? '• ' : '';
+      const lines = doc.splitTextToSize(`${prefix}${text}`, maxWidth);
+      lines.forEach((line: string) => {
+        ensureSpace(16);
+        doc.text(line, margin, y);
+        y += 15;
+      });
+      y += 2;
+    };
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 78, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Informe Ejecutivo de Conversacion', margin, 35);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(report.title, margin, 56);
+
+    doc.setTextColor(15, 23, 42);
+    y = 102;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Fecha de generacion: ${report.generatedAt}`, margin, y);
+    y += 24;
+
+    writeHeading('1. Resumen general en lenguaje claro');
+    writeParagraph(report.introduction);
+
+    writeHeading('2. Topicos tecnicos detectados');
+    report.mlTopics.forEach((item) => writeParagraph(item, true));
+
+    writeHeading('3. Analisis de los puntos tratados');
+    report.analysis.forEach((item) => writeParagraph(item, true));
+
+    writeHeading('4. Conceptos clave detectados');
+    report.keyConcepts.forEach((item) => writeParagraph(item, true));
+
+    writeHeading('5. Conclusiones');
+    report.conclusions.forEach((item) => writeParagraph(item, true));
+
+    writeHeading('6. Recomendaciones');
+    report.recommendations.forEach((item) => writeParagraph(item, true));
+
+    const pdfBlob = doc.output('blob');
+    this.downloadBlob(pdfBlob, `${baseFileName}.pdf`);
+  }
+
+  private downloadSummaryAsDoc(report: ExportReport, baseFileName: string) {
+    const html = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #0f172a; margin: 28px; line-height: 1.45; }
+    .cover { background: #0f172a; color: #fff; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+    .meta { color: #475569; font-size: 12px; margin: 10px 0 18px; }
+    h2 { margin: 0 0 8px; font-size: 20px; }
+    h3 { margin: 20px 0 8px; font-size: 15px; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+    section { margin-bottom: 10px; }
+    p { margin: 0; }
+    ul { margin: 6px 0 0 20px; }
+    li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <h2>Informe Ejecutivo de Conversacion</h2>
+    <p>${this.escapeHtml(report.title)}</p>
+  </div>
+  <p class="meta">Fecha de generacion: ${this.escapeHtml(report.generatedAt)}</p>
+
+  <section>
+    <h3>1. Introduccion</h3>
+    <p>${this.escapeHtml(report.introduction)}</p>
+  </section>
+
+  <section>
+    <h3>2. Topicos tecnicos detectados</h3>
+    <ul>${report.mlTopics.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+  </section>
+
+  <section>
+    <h3>3. Analisis de los puntos tratados</h3>
+    <ul>${report.analysis.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+  </section>
+
+  <section>
+    <h3>4. Conceptos clave detectados</h3>
+    <ul>${report.keyConcepts.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+  </section>
+
+  <section>
+    <h3>5. Conclusiones</h3>
+    <ul>${report.conclusions.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+  </section>
+
+  <section>
+    <h3>6. Recomendaciones</h3>
+    <ul>${report.recommendations.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}</ul>
+  </section>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    this.downloadBlob(blob, `${baseFileName}.doc`);
+  }
+
+  private downloadBlob(blob: Blob, fileName: string) {
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  private buildSafeFileName(raw: string): string {
+    const normalized = (raw || 'resumen-chat')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9-_\s]/g, '')
+      .replace(/\s+/g, '-')
+      .slice(0, 48)
+      .replace(/^-+|-+$/g, '');
+
+    return normalized || 'resumen-chat';
   }
 
   private setMicStatus(message: string, type: 'info' | 'error' | 'success' = 'info') {
@@ -1146,6 +2600,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.activeUtterance = null;
     this.isSpeechPlaying = false;
     this.isSpeechPaused = false;
+    this.speakingMessageIndex = null;
   }
 
   private stopBotSpeech() {
@@ -1160,28 +2615,126 @@ export class ChatComponent implements OnInit, OnDestroy {
     const source = (markdownText || '').trim();
     if (!source) return '';
 
+    const normalizeText = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+    const ensureSpeechPrefix = (text: string) => {
+      return normalizeText(text);
+    };
+
+    const hasCodeBlocks = /```[\s\S]*?```/.test(source);
+    const withoutCode = source.replace(/```[\s\S]*?```/g, ' ');
+
     try {
-      const rendered = marked.parse(source, { gfm: true, breaks: true }) as string;
+      const rendered = marked.parse(withoutCode, { gfm: true, breaks: true }) as string;
       const parser = new DOMParser();
       const doc = parser.parseFromString(rendered, 'text/html');
-      return (doc.body.textContent || '')
+      const textContent = (doc.body.textContent || '')
         .replace(/\s+/g, ' ')
         .replace(/\s([,.;:!?])/g, '$1')
         .trim();
+
+      const spokenText = ensureSpeechPrefix(textContent);
+      if (!spokenText) return '';
+
+      if (hasCodeBlocks) {
+        return normalizeText(`${spokenText} Hay código mostrado en pantalla.`);
+      }
+
+      return spokenText;
     } catch {
-      return source
-        .replace(/```[\s\S]*?```/g, ' ')
+      const fallbackText = source
+        .replace(/```[\s\S]*?```/g, ' Código mostrado en pantalla. ')
         .replace(/`([^`]+)`/g, '$1')
         .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
         .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-        .replace(/^\s*[-*+]\s+/gm, '')
-        .replace(/^\s*\d+[.)]\s+/gm, '')
         .replace(/^\s*>\s?/gm, '')
         .replace(/[*_~]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+
+      return ensureSpeechPrefix(fallbackText);
     }
+  }
+
+  private splitTextForSpeech(text: string, maxChunkLength = 260): string[] {
+    const compact = (text || '').replace(/\s+/g, ' ').trim();
+    if (!compact) return [];
+
+    const chunks: string[] = [];
+    const sentenceCandidates = compact
+      .split(/(?<=[.!?;:])\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const segments = sentenceCandidates.length > 0 ? sentenceCandidates : [compact];
+    let current = '';
+
+    const flushCurrent = () => {
+      const clean = current.trim();
+      if (clean) chunks.push(clean);
+      current = '';
+    };
+
+    for (const segment of segments) {
+      if (segment.length > maxChunkLength) {
+        flushCurrent();
+        let remaining = segment;
+        while (remaining.length > maxChunkLength) {
+          let splitPoint = remaining.lastIndexOf(' ', maxChunkLength);
+          if (splitPoint <= 0) splitPoint = maxChunkLength;
+          chunks.push(remaining.slice(0, splitPoint).trim());
+          remaining = remaining.slice(splitPoint).trim();
+        }
+        if (remaining) current = remaining;
+        continue;
+      }
+
+      const candidate = current ? `${current} ${segment}` : segment;
+      if (candidate.length <= maxChunkLength) {
+        current = candidate;
+      } else {
+        flushCurrent();
+        current = segment;
+      }
+    }
+
+    flushCurrent();
+    return chunks;
+  }
+
+  private speakChunks(chunks: string[], index = 0) {
+    const synthesis = globalThis.speechSynthesis;
+    if (!synthesis || index >= chunks.length) {
+      this.resetSpeechState();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(chunks[index]);
+    utterance.lang = globalThis.navigator?.language || 'es-ES';
+    utterance.rate = this.speechRate;
+    utterance.pitch = 1;
+
+    utterance.onstart = () => {
+      this.isSpeechPlaying = true;
+      this.isSpeechPaused = false;
+      this.setMicStatus('Respuesta en audio activa.', 'info');
+      this.cdr.detectChanges();
+    };
+
+    utterance.onend = () => {
+      this.speakChunks(chunks, index + 1);
+    };
+
+    utterance.onerror = () => {
+      this.resetSpeechState();
+      this.setMicStatus('No se pudo reproducir el audio del bot.', 'error');
+      this.cdr.detectChanges();
+    };
+
+    this.activeUtterance = utterance;
+    synthesis.speak(utterance);
   }
 
   private speakBotReply(text: string) {
@@ -1199,31 +2752,13 @@ export class ChatComponent implements OnInit, OnDestroy {
 
     this.stopBotSpeech();
 
-    const utterance = new SpeechSynthesisUtterance(plainText);
-    utterance.lang = globalThis.navigator?.language || 'es-ES';
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    const chunks = this.splitTextForSpeech(plainText);
+    if (chunks.length === 0) {
+      this.setMicStatus('No hay texto legible para reproducir en voz.', 'error');
+      return;
+    }
 
-    utterance.onstart = () => {
-      this.isSpeechPlaying = true;
-      this.isSpeechPaused = false;
-      this.setMicStatus('Respuesta en audio activa.', 'info');
-      this.cdr.detectChanges();
-    };
-
-    utterance.onend = () => {
-      this.resetSpeechState();
-      this.cdr.detectChanges();
-    };
-
-    utterance.onerror = () => {
-      this.resetSpeechState();
-      this.setMicStatus('No se pudo reproducir el audio del bot.', 'error');
-      this.cdr.detectChanges();
-    };
-
-    this.activeUtterance = utterance;
-    synthesis.speak(utterance);
+    this.speakChunks(chunks);
   }
 
   private async transcribeWithBackend(audioBlob: Blob): Promise<string> {
@@ -1487,12 +3022,15 @@ export class ChatComponent implements OnInit, OnDestroy {
 
    ngOnInit() {
      this.onProviderChange();
+     void this.loadReportTaxonomyConfig();
 
      // Actualizar currentUsername con el usuario de sesión
      const currentUser = this.sessionService.getUser();
      if (currentUser?.username) {
        this.currentUsername = currentUser.username;
      }
+     this.currentCareer = currentUser?.career || '';
+     this.applyCareerScopedTaxonomy(this.currentCareer);
 
      void this.loadSharedPrompts();
 
@@ -1503,17 +3041,26 @@ export class ChatComponent implements OnInit, OnDestroy {
 
       this.sessionSubscription = this.sessionService.session$
         .pipe(
-          map((session) => session?.user?.username ?? null),
-          distinctUntilChanged(),
+          map((session) => ({
+            username: session?.user?.username ?? null,
+            career: session?.user?.career ?? null,
+          })),
+          distinctUntilChanged(
+            (prev, curr) => prev.username === curr.username && prev.career === curr.career,
+          ),
         )
-        .subscribe((username) => {
+        .subscribe((sessionInfo) => {
        this.loadProfileImageFromSession();
         // Recargar chats solo cuando cambia el usuario autenticado
-        if (username) {
-          this.currentUsername = username;
+        if (sessionInfo.username) {
+          this.currentUsername = sessionInfo.username;
+          this.currentCareer = sessionInfo.career || '';
+          this.applyCareerScopedTaxonomy(this.currentCareer);
           void this.loadChatsByUser();
           return;
        }
+        this.currentCareer = '';
+        this.applyCareerScopedTaxonomy('');
         this.misChats = [];
         this.lastLoadedChatsUser = null;
       });
@@ -1528,6 +3075,11 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (this.profileImageObjectUrl) {
       URL.revokeObjectURL(this.profileImageObjectUrl);
       this.profileImageObjectUrl = null;
+    }
+
+    if (this.copiedMessageTimeoutId) {
+      clearTimeout(this.copiedMessageTimeoutId);
+      this.copiedMessageTimeoutId = null;
     }
 
     this.stopBotSpeech();

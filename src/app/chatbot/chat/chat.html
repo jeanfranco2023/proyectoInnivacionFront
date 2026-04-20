@@ -126,17 +126,23 @@
           </div>
         </div>
       </div>
-      <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-        <button type="button" (click)="openShareModal('chat')"
-                class="rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
-                title="Compartir chat"
-                aria-label="Compartir chat">
-          <i class="fa-solid fa-share-nodes text-sm"></i>
-        </button>
-        <button class="rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white" title="Más opciones" aria-label="Más opciones">
-          <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
-        </button>
-      </div>
+       <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+         <button type="button" (click)="openShareModal()"
+                 class="rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
+                 title="Compartir chat"
+                 aria-label="Compartir chat">
+           <i class="fa-solid fa-share-nodes text-sm"></i>
+         </button>
+         <button
+           type="button"
+           (click)="toggleExportMenu($event)"
+           class="rounded-full p-2 transition hover:bg-blue-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-white"
+           title="Descargar resumen"
+           aria-label="Descargar resumen"
+           [attr.aria-expanded]="isExportMenuOpen">
+           <i class="fa-solid fa-download text-sm"></i>
+         </button>
+       </div>
     </header>
 
     <!-- Mensajes -->
@@ -159,11 +165,11 @@
       </div>
 
       <div class="chat-stream-wrap mx-auto w-full max-w-5xl space-y-4">
-        <div *ngFor="let m of messages" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in flex w-full transition-all duration-200">
+        <div *ngFor="let m of messages; let i = index" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in flex w-full transition-all duration-200">
           <div [ngClass]="m.role === 'user'
                 ? 'mc-user-bubble rounded-3xl rounded-tr-md border border-blue-500/20 dark:border-sky-300/20'
                 : 'mc-bot-bubble rounded-3xl rounded-tl-md'"
-               class="chat-bubble max-w-[94%] px-4 py-3 text-sm leading-relaxed sm:max-w-[88%] sm:px-5 sm:py-4 sm:text-base">
+               class="chat-bubble group relative max-w-[94%] px-4 py-3 text-sm leading-relaxed sm:max-w-[88%] sm:px-5 sm:py-4 sm:text-base">
             <div *ngIf="m.isFile" class="mb-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/10 p-3">
               <i class="fa-solid fa-file-pdf text-xl sm:text-2xl"></i>
               <div class="min-w-0">
@@ -172,7 +178,35 @@
               </div>
             </div>
             <p *ngIf="!m.isFile && m.role === 'user'" class="whitespace-pre-wrap">{{ m.text }}</p>
-            <div *ngIf="!m.isFile && m.role === 'bot'" [innerHTML]="m.html || m.text" class="prose prose-slate max-w-none dark:prose-invert prose-headings:font-semibold prose-p:leading-7 prose-li:my-1 prose-strong:text-slate-900 dark:prose-strong:text-white"></div>
+            <div *ngIf="!m.isFile && m.role === 'bot'" [innerHTML]="m.html || m.text" (click)="onBotMarkdownClick($event)" class="bot-markdown prose prose-slate max-w-none dark:prose-invert prose-headings:font-semibold prose-p:leading-7 prose-li:my-1 prose-strong:text-slate-900 dark:prose-strong:text-white"></div>
+            <div *ngIf="!m.isFile && m.role === 'bot'" class="mt-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+              <div class="group/tooltip relative">
+                <button
+                  type="button"
+                  (click)="copyBotResponse(m, i)"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-100 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-300"
+                  aria-label="Copiar respuesta">
+                  <i [class]="copiedMessageIndex === i ? 'fa-solid fa-check text-emerald-500' : 'fa-regular fa-copy'"></i>
+                </button>
+                <span class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition group-hover/tooltip:opacity-100 dark:bg-slate-100 dark:text-slate-900"
+                      [class.opacity-100]="copiedMessageIndex === i">
+                  {{ copiedMessageIndex === i ? 'Copiado' : 'Copiar' }}
+                </span>
+              </div>
+
+              <div class="group/tooltip relative">
+                <button
+                  type="button"
+                  (click)="toggleListenBotResponse(m, i)"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-100 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-300"
+                  aria-label="Escuchar respuesta">
+                  <i [class]="isSpeechPlaying && speakingMessageIndex === i ? 'fa-solid fa-stop' : 'fa-solid fa-volume-high'"></i>
+                </button>
+                <span class="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition group-hover/tooltip:opacity-100 dark:bg-slate-100 dark:text-slate-900">
+                  {{ isSpeechPlaying && speakingMessageIndex === i ? 'Detener audio' : 'Escuchar' }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -354,20 +388,47 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-blue-200 px-4 pb-5 pt-4 sm:px-6 dark:border-slate-800">
-        <button type="button"
-                (click)="closeChatModal()"
-                class="rounded-2xl border border-blue-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-          Cancelar
-        </button>
-        <button type="button"
-                (click)="confirmChatModalAction()"
-                [disabled]="isChatModalSubmitting || (chatModalMode === 'rename' && !chatModalTitleDraft.trim())"
-                [ngClass]="chatModalMode === 'delete' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-400/50' : 'bg-blue-950 hover:bg-blue-800 focus:ring-blue-400/40 dark:bg-sky-500 dark:hover:bg-sky-400'"
-                class="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white transition focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60">
-          {{ isChatModalSubmitting ? 'Procesando...' : (chatModalMode === 'rename' ? 'Guardar cambios' : 'Eliminar chat') }}
-        </button>
-      </div>
+       <div class="flex flex-wrap items-center justify-end gap-2 border-t border-blue-200 px-4 pb-5 pt-4 sm:px-6 dark:border-slate-800">
+         <button type="button"
+                 (click)="closeChatModal()"
+                 class="rounded-2xl border border-blue-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-blue-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+           Cancelar
+         </button>
+         <button type="button"
+                 (click)="confirmChatModalAction()"
+                 [disabled]="isChatModalSubmitting || (chatModalMode === 'rename' && !chatModalTitleDraft.trim())"
+                 [ngClass]="chatModalMode === 'delete' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-400/50' : 'bg-blue-950 hover:bg-blue-800 focus:ring-blue-400/40 dark:bg-sky-500 dark:hover:bg-sky-400'"
+                 class="rounded-2xl px-4 py-2.5 text-sm font-semibold text-white transition focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60">
+           {{ isChatModalSubmitting ? 'Procesando...' : (chatModalMode === 'rename' ? 'Guardar cambios' : 'Eliminar chat') }}
+         </button>
+       </div>
+     </div>
+   </div>
+
+  <!-- MODAL DE DESCARGA - POSICIONADO GLOBALMENTE FUERA DEL MAIN -->
+  <div *ngIf="isExportMenuOpen"
+       class="export-menu-modal"
+       (click)="isExportMenuOpen = false"
+       (keydown.escape)="isExportMenuOpen = false">
+    <div class="export-menu-container"
+         (click)="$event.stopPropagation()"
+         (keydown)="$event.stopPropagation()">
+      <button
+        type="button"
+        (click)="exportChatSummary('pdf')"
+        [disabled]="isExportingSummary"
+        class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 dark:hover:bg-slate-800">
+        <i class="fa-regular fa-file-pdf"></i>
+        {{ isExportingSummary ? 'Generando...' : 'PDF' }}
+      </button>
+      <button
+        type="button"
+        (click)="exportChatSummary('doc')"
+        [disabled]="isExportingSummary"
+        class="flex w-full items-center gap-2 border-t border-blue-100 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800">
+        <i class="fa-regular fa-file-word"></i>
+        {{ isExportingSummary ? 'Generando...' : 'TXT' }}
+      </button>
     </div>
   </div>
 </div>

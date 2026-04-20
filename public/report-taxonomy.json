@@ -1,0 +1,82 @@
+{
+  "defaultCareerKey": "general",
+  "careers": {
+    "general": {
+      "displayName": "General multidisciplinario",
+      "aliases": ["general", "multidisciplinario", "sin carrera"],
+      "conversationTopics": [
+        { "label": "metodologia de investigacion", "keywords": ["investigacion", "metodologia", "hipotesis", "variable", "muestra", "analisis", "estadistica"] },
+        { "label": "analisis y toma de decisiones", "keywords": ["decision", "criterio", "prioridad", "alternativa", "estrategia", "riesgo", "evaluacion"] },
+        { "label": "comunicacion academica", "keywords": ["resumen", "informe", "argumento", "redaccion", "conclusion", "ensayo"] }
+      ],
+      "focusTopics": [
+        { "label": "fundamentos conceptuales", "keywords": ["concepto", "definicion", "fundamento", "principio", "teoria"] },
+        { "label": "aplicacion practica", "keywords": ["caso", "ejemplo", "aplicacion", "proceso", "implementacion"] },
+        { "label": "evaluacion de resultados", "keywords": ["resultado", "indicador", "medicion", "evaluacion", "mejora"] }
+      ],
+      "keyConceptDomains": [
+        { "label": "metodologia e investigacion", "keywords": ["investigacion", "metodologia", "hipotesis", "variable", "muestra", "analisis", "estadistica"] },
+        { "label": "planificacion y gestion", "keywords": ["plan", "objetivo", "estrategia", "prioridad", "decision", "riesgo"] },
+        { "label": "comunicacion y sintesis", "keywords": ["resumen", "informe", "conclusion", "argumento", "explicacion"] }
+      ]
+    },
+    "ingenieria_tecnologia": {
+      "displayName": "Ingenieria y tecnologia",
+      "aliases": ["ingenieria", "sistemas", "software", "informatica", "tecnologia", "computacion"],
+      "conversationTopics": [
+        { "label": "arquitectura y desarrollo", "keywords": ["arquitectura", "modulo", "api", "backend", "frontend", "componente"] },
+        { "label": "datos e inteligencia artificial", "keywords": ["machine learning", "modelo", "entrenamiento", "dataset", "algoritmo", "metricas"] },
+        { "label": "calidad y operacion", "keywords": ["error", "validacion", "prueba", "rendimiento", "despliegue", "seguridad"] }
+      ],
+      "focusTopics": [
+        { "label": "diseno tecnico", "keywords": ["diseno", "arquitectura", "patron", "interfaz", "estructura"] },
+        { "label": "implementacion y pruebas", "keywords": ["codigo", "implementacion", "pruebas", "debug", "refactor"] },
+        { "label": "integracion y mantenimiento", "keywords": ["integracion", "endpoint", "servicio", "versionado", "mantenimiento"] }
+      ],
+      "keyConceptDomains": [
+        { "label": "ingenieria de software", "keywords": ["sistema", "software", "api", "backend", "frontend", "arquitectura"] },
+        { "label": "analitica y machine learning", "keywords": ["machine learning", "entrenamiento", "clasificacion", "regresion", "feature", "modelo"] },
+        { "label": "calidad y seguridad", "keywords": ["validacion", "error", "prueba", "seguridad", "autenticacion"] }
+      ]
+    },
+    "salud_ciencias_medicas": {
+      "displayName": "Salud y ciencias medicas",
+      "aliases": ["salud", "medicina", "enfermeria", "odontologia", "farmacia", "nutricion"],
+      "conversationTopics": [
+        { "label": "atencion y diagnostico", "keywords": ["paciente", "diagnostico", "sintoma", "anamnesis", "evaluacion clinica"] },
+        { "label": "tratamiento y prevencion", "keywords": ["tratamiento", "terapia", "prevencion", "protocolo", "seguimiento"] },
+        { "label": "evidencia y bioetica", "keywords": ["evidencia", "guia clinica", "bioetica", "riesgo", "beneficio"] }
+      ],
+      "focusTopics": [
+        { "label": "decision clinica", "keywords": ["diagnostico", "criterio clinico", "pronostico", "indicacion"] },
+        { "label": "seguridad del paciente", "keywords": ["seguridad", "adverso", "farmacovigilancia", "protocolo"] },
+        { "label": "salud publica", "keywords": ["epidemiologia", "prevencion", "incidencia", "poblacion"] }
+      ],
+      "keyConceptDomains": [
+        { "label": "diagnostico y evaluacion", "keywords": ["diagnostico", "sintoma", "examen", "evaluacion", "criterio"] },
+        { "label": "tratamiento y cuidado", "keywords": ["tratamiento", "terapia", "cuidado", "seguimiento", "paciente"] },
+        { "label": "epidemiologia y prevencion", "keywords": ["epidemiologia", "prevencion", "factor de riesgo", "incidencia"] }
+      ]
+    },
+    "derecho_normatividad": {
+      "displayName": "Derecho y normatividad",
+      "aliases": ["derecho", "juridico", "abogacia", "leyes", "normatividad"],
+      "conversationTopics": [
+        { "label": "analisis normativo", "keywords": ["ley", "norma", "articulo", "constitucion", "codigo"] },
+        { "label": "argumentacion juridica", "keywords": ["argumentacion", "interpretacion", "principio", "doctrina", "tesis"] },
+        { "label": "casuistica y jurisprudencia", "keywords": ["caso", "jurisprudencia", "precedente", "sentencia", "fallo"] }
+      ],
+      "focusTopics": [
+        { "label": "jerarquia normativa", "keywords": ["constitucion", "ley", "reglamento", "jerarquia"] },
+        { "label": "aplicacion al caso", "keywords": ["hechos", "supuesto", "aplicacion", "tipificacion"] },
+        { "label": "sustento argumentativo", "keywords": ["argumento", "fundamento", "criterio", "conclusion juridica"] }
+      ],
+      "keyConceptDomains": [
+        { "label": "normativa y fuentes", "keywords": ["norma", "ley", "constitucion", "reglamento", "fuente"] },
+        { "label": "interpretacion juridica", "keywords": ["interpretacion", "principio", "doctrina", "argumentacion"] },
+        { "label": "jurisprudencia y casos", "keywords": ["jurisprudencia", "precedente", "sentencia", "caso"] }
+      ]
+    }
+  }
+}
+

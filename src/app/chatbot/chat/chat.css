@@ -69,6 +69,155 @@
   backdrop-filter: blur(2px);
 }
 
+:host ::ng-deep .bot-markdown .mc-code-block {
+  margin: 0.75rem 0;
+  overflow: auto;
+  max-height: 24rem;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 0.95rem;
+  background: radial-gradient(circle at top right, #1c2540 0%, #0b1220 58%, #070d18 100%);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.38);
+}
+
+:host ::ng-deep .bot-markdown .mc-code-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.92));
+  backdrop-filter: blur(6px);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-lang {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 999px;
+  background: rgba(14, 116, 144, 0.18);
+  color: #bae6fd;
+  padding: 0.14rem 0.55rem;
+  font-size: 0.67rem;
+  letter-spacing: 0.02em;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-copy-btn {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 1.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-copy-icon {
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-copy-btn:hover {
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(103, 232, 249, 0.65);
+  color: #e0f2fe;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-copy-btn.is-copied {
+  border-color: rgba(16, 185, 129, 0.72);
+  background: rgba(6, 78, 59, 0.55);
+  color: #a7f3d0;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-copy-btn:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-pre {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0.9rem 1rem !important;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content {
+  display: block;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #e5e7eb !important;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-comment,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-quote {
+  color: #7dd3fc;
+  font-style: italic;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-keyword,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-selector-tag,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-subst {
+  color: #c084fc;
+  font-weight: 600;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-string,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-title,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-section,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-attribute,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-symbol,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-bullet,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-addition {
+  color: #22d3ee;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-number,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-literal,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-variable,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-template-variable,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-tag .hljs-attr,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-link {
+  color: #f59e0b;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-type,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-built_in,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-builtin-name,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-params,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-function {
+  color: #60a5fa;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-meta,
+:host ::ng-deep .bot-markdown .mc-code-content .hljs-deletion {
+  color: #f87171;
+}
+
+:host ::ng-deep .bot-markdown .mc-code-content::before,
+:host ::ng-deep .bot-markdown .mc-code-content::after {
+  content: none !important;
+}
+
 .chat-stream-wrap {
   padding-right: 0.15rem;
 }
@@ -388,5 +537,92 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Export Menu Modal - Nuevo sistema global */
+.export-menu-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: auto;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.export-menu-container {
+  position: relative;
+  width: calc(100% - 2rem);
+  max-width: 14rem;
+  margin: 0 1rem 5rem 1rem;
+  overflow: hidden;
+  border-radius: 0.875rem;
+  border: 1px solid rgb(191, 219, 254);
+  background: white;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  animation: slideUpMenu 0.3s ease-out;
+  pointer-events: auto;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.export-menu-container button {
+  pointer-events: auto;
+  touch-action: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.export-menu-container button:active {
+  background-color: rgb(219, 234, 254);
+}
+
+/* Dark mode para el modal */
+@media (prefers-color-scheme: dark) {
+  .export-menu-container {
+    border-color: rgb(55, 65, 81);
+    background: rgb(15, 23, 42);
+  }
+
+  .export-menu-container button {
+    color: rgb(226, 232, 240);
+  }
+
+  .export-menu-container button:hover {
+    background-color: rgb(30, 41, 59);
+  }
+}
+
+/* En pantallas grandes, posicionar cerca del botón */
+@media (min-width: 641px) {
+  .export-menu-modal {
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-top: 4rem;
+    padding-right: 2rem;
+  }
+
+  .export-menu-container {
+    width: auto;
+    margin: 0;
+    margin-top: 0.5rem;
+  }
+}
+
+@keyframes slideUpMenu {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 

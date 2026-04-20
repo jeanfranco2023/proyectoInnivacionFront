@@ -1,5 +1,6 @@
 export const enviroment = {
-  apiBaseUrl: 'https://proyectoinnovacionback.onrender.com',
+  //apiBaseUrl: 'https://proyectoinnovacionback.onrender.com',
+  apiBaseUrl: ' http://127.0.0.1:8000',
   endpoints: {
     authLogin: '/auth/login',
     authRegister: '/auth/register',

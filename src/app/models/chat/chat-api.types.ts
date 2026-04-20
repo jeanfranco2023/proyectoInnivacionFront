@@ -43,6 +43,7 @@ export interface StartChatRequest {
   model: string;
   title?: string;
   language?: string;
+  voice_mode?: boolean;
 }
 
 export interface StartChatResponse {
@@ -58,6 +59,7 @@ export interface SendMessageRequest {
   provider: AiProvider;
   model: string;
   language?: string;
+  voice_mode?: boolean;
 }
 
 export interface SendMessageResponse {
