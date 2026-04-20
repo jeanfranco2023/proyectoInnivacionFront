@@ -248,14 +248,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   @ViewChild('chatListContainer') chatListContainer?: ElementRef<HTMLDivElement>;
 
   readonly providerOptions: { value: AiProvider; label: string }[] = [
-    { value: 'gemini', label: 'Gemini' },
-    { value: 'ollama', label: 'Ollama' },
+    { value: 'gemini', label: 'Gemini' }
   ];
 
   // Modelos predefinidos por proveedor
   modelOptionsByProvider: { [key in AiProvider]?: string[] } = {
-    gemini: ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
-    ollama: ['llama3.1'],
+    gemini: ['gemini-1.5-flash']
   };
 
   // Dropdown del agente
