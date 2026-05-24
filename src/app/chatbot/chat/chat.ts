@@ -8,6 +8,9 @@ import { marked } from 'marked';
 import { ChatApiService } from '../../service/chat/chat-api.service';
 import { AuthApiService } from '../../service/auth/auth-api.service';
 import { SessionService } from '../../service/auth/session.service';
+import { SidebarToggleService } from '../../service/sidebar/sidebar-toggle.service';
+import { SidebarComponent } from '../sidebar/sidebar';
+
 import {
   AiProvider,
   ChatDetailResponse,
@@ -179,7 +182,7 @@ const DEFAULT_REPORT_TAXONOMY_DATASET: ReportTaxonomyDataset = {
   templateUrl: './chat.html',
   styleUrl: './chat.css',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SidebarComponent],
 })
 export class ChatComponent implements OnInit, OnDestroy {
   nombreUsuario: string = 'Seven';
@@ -229,7 +232,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private readonly speechToTextEndpoint: string = `${enviroment.apiBaseUrl}${enviroment.endpoints.speechToText}`;
   private recognitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private copiedMessageTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private activeChat: ChatItem | null = null;
+  activeChat: ChatItem | null = null;
   private readonly speechRate = 1.5;
   private readonly reportTaxonomyUrl: string = '/report-taxonomy.json';
   private reportTaxonomyDataset: ReportTaxonomyDataset = DEFAULT_REPORT_TAXONOMY_DATASET;
@@ -239,6 +242,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   profileImageUrl: string | null = null;
   private profileImageObjectUrl: string | null = null;
   private sessionSubscription: Subscription | null = null;
+  private sidebarSubscription: Subscription | null = null;
   private lastLoadedChatsUser: string | null = null;
   private loadingChatId: string | null = null;
   private lastSummaryCacheKey: string | null = null;
@@ -270,6 +274,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     private readonly sessionService: SessionService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
+    public readonly sidebarToggleService: SidebarToggleService,
   ) {
     const currentUser = this.sessionService.getUser();
     this.nombreUsuario = currentUser?.display_name || 'Seven';
@@ -728,16 +733,16 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   // ======================= MÉTODOS RESPONSIVE =======================
   toggleSidebar() {
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;
+    this.sidebarToggleService.toggle();
   }
 
   closeSidebar() {
-    this.mobileSidebarOpen = false;
+    this.sidebarToggleService.setOpen(false);
   }
 
   closeSidebarOnMobile() {
     if (globalThis.innerWidth < 1024) {
-      this.mobileSidebarOpen = false;
+      this.sidebarToggleService.setOpen(false);
     }
   }
 
@@ -1333,16 +1338,16 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.closeSidebarOnMobile();
   }
 
-  openRenameModal(event: Event, chat: ChatItem) {
-    event.stopPropagation();
+  openRenameModal(event: Event | null, chat: ChatItem) {
+    event?.stopPropagation();
     if (!chat.id) return;
     this.chatModalMode = 'rename';
     this.chatModalTarget = chat;
     this.chatModalTitleDraft = chat.titulo;
   }
 
-  openDeleteModal(event: Event, chat: ChatItem) {
-    event.stopPropagation();
+  openDeleteModal(event: Event | null, chat: ChatItem) {
+    event?.stopPropagation();
     if (!chat.id) return;
     this.chatModalMode = 'delete';
     this.chatModalTarget = chat;
@@ -3077,6 +3082,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
    ngOnInit() {
+     this.sidebarSubscription = this.sidebarToggleService.mobileSidebarOpen$.subscribe(open => {
+       this.mobileSidebarOpen = open;
+       this.cdr.detectChanges();
+     });
      this.onProviderChange();
      void this.loadReportTaxonomyConfig();
 
@@ -3126,6 +3135,11 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (this.sessionSubscription) {
       this.sessionSubscription.unsubscribe();
       this.sessionSubscription = null;
+    }
+
+    if (this.sidebarSubscription) {
+      this.sidebarSubscription.unsubscribe();
+      this.sidebarSubscription = null;
     }
 
     if (this.profileImageObjectUrl) {
