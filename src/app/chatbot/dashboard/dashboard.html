@@ -1,0 +1,260 @@
+<div class="mc-page-enter fixed inset-0 flex h-[100dvh] w-full overflow-hidden bg-blue-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
+  
+  <!-- SIDEBAR MODULAR -->
+  <app-sidebar></app-sidebar>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+    
+    <!-- HEADER -->
+    <header class="flex h-16 shrink-0 items-center justify-between border-b border-blue-200/80 bg-white/75 px-4 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/70 sm:px-8">
+      <div class="flex items-center gap-3">
+        <button (click)="toggleSidebar()" class="text-2xl text-slate-600 transition hover:text-blue-600 lg:hidden">☰</button>
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-950 text-white shadow-sm dark:bg-slate-800">
+            <i class="fa-solid fa-chart-line text-lg"></i>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-900 dark:text-white sm:text-base">Dashboard Administrador</p>
+            <p class="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:block">Monitoreo y métricas del sistema MentorCore</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8">
+      <div class="mx-auto w-full max-w-6xl space-y-8">
+
+        <!-- ALERTA MENSAJES -->
+        <div *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-sm dark:border-red-900/30 dark:bg-red-950/30 dark:text-red-200">
+          {{ errorMessage }}
+        </div>
+        <div *ngIf="successMessage" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+          {{ successMessage }}
+        </div>
+
+        <!-- TARJETAS ESTADÍSTICAS -->
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          
+          <div class="stat-card rounded-3xl border border-blue-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                <i class="fa-solid fa-user-group text-sm"></i>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Usuarios Totales</p>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">{{ stats?.total_users ?? 0 }}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card rounded-3xl border border-blue-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                <i class="fa-solid fa-user-clock text-sm"></i>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Activos (30 días)</p>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">{{ stats?.active_users ?? 0 }}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card rounded-3xl border border-blue-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
+                <i class="fa-regular fa-comment-dots text-sm"></i>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Publicaciones</p>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">{{ stats?.total_posts ?? 0 }}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card rounded-3xl border border-blue-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400">
+                <i class="fa-regular fa-comments text-sm"></i>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Comentarios</p>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">{{ stats?.total_comments ?? 0 }}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card rounded-3xl border border-blue-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900 col-span-2 sm:col-span-1">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+                <i class="fa-solid fa-robot text-sm"></i>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Chats Totales</p>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">{{ stats?.total_chats ?? 0 }}</h3>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SECCIÓN DE DETALLES DEL SISTEMA Y ACTIVIDAD RECIENTE -->
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          
+          <!-- TIMELINE DE ACTIVIDAD RECIENTE -->
+          <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <h2 class="text-base font-bold text-slate-800 dark:text-white mb-6">Actividad Reciente</h2>
+            <div class="timeline-container relative pl-4 border-l border-blue-100 dark:border-slate-800 space-y-6">
+              
+              <div *ngIf="!stats?.recent_activity || stats?.recent_activity?.length === 0" class="text-center py-6 text-sm text-slate-400 dark:text-slate-500">
+                No hay actividad registrada recientemente.
+              </div>
+
+              <div *ngFor="let item of stats?.recent_activity" class="timeline-item relative">
+                <!-- Icono del timeline -->
+                <span class="absolute -left-[25px] top-0 flex h-4 w-4 items-center justify-center rounded-full bg-white ring-4 ring-blue-50 dark:bg-slate-900 dark:ring-slate-950">
+                  <span [class.bg-blue-500]="item.type === 'user_registered'"
+                        [class.bg-emerald-500]="item.type === 'new_post'"
+                        [class.bg-violet-500]="item.type === 'new_comment'"
+                        class="h-2 w-2 rounded-full"></span>
+                </span>
+                
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      <span class="font-bold text-blue-600 dark:text-sky-400">&#64;{{ item.username }}</span>
+                      {{ item.type === 'user_registered' ? 'se registró en el sistema' : item.type === 'new_post' ? 'creó una publicación' : 'añadió un comentario' }}
+                    </p>
+                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 italic">"{{ item.details }}"</p>
+                  </div>
+                  <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">{{ item.timestamp | date:'short' }}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- INFORMACIÓN DEL SISTEMA -->
+          <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-base font-bold text-slate-800 dark:text-white mb-6">Estado del Servidor</h2>
+            <div class="space-y-4 text-sm">
+              <div class="flex justify-between items-center border-b border-slate-100 pb-3 dark:border-slate-800">
+                <span class="text-slate-500 dark:text-slate-400">Estado DB</span>
+                <span [class.bg-emerald-100]="stats?.system_info?.mongo_status === 'connected'"
+                      [class.text-emerald-700]="stats?.system_info?.mongo_status === 'connected'"
+                      class="rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase">
+                  {{ stats?.system_info?.mongo_status === 'connected' ? 'Conectado' : 'Desconectado' }}
+                </span>
+              </div>
+              <div class="flex justify-between items-center border-b border-slate-100 pb-3 dark:border-slate-800">
+                <span class="text-slate-500 dark:text-slate-400">Python Versión</span>
+                <span class="font-mono text-xs text-slate-800 dark:text-slate-300">{{ stats?.system_info?.python_version ?? 'Desconocida' }}</span>
+              </div>
+              <div class="flex justify-between items-center border-b border-slate-100 pb-3 dark:border-slate-800">
+                <span class="text-slate-500 dark:text-slate-400">Sistema Operativo</span>
+                <span class="text-xs text-slate-800 dark:text-slate-300">{{ stats?.system_info?.os_platform ?? 'Desconocido' }}</span>
+              </div>
+              <div class="flex justify-between items-center pb-3">
+                <span class="text-slate-500 dark:text-slate-400">Nombre BD</span>
+                <span class="font-mono text-xs text-slate-800 dark:text-slate-300">{{ stats?.system_info?.db_name ?? 'Desconocida' }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TABLA DE GESTIÓN DE USUARIOS -->
+        <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h2 class="text-base font-bold text-slate-800 dark:text-white">Gestión de Cuentas de Usuario</h2>
+            
+            <!-- Barra de búsqueda -->
+            <div class="relative w-full sm:w-72">
+              <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="filterUsers()" placeholder="Buscar usuario..."
+                     class="w-full rounded-2xl border border-blue-100 bg-blue-50/30 px-4 py-2.5 pl-10 text-xs outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/50 dark:focus:border-sky-500/30 dark:focus:bg-slate-950" />
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-xs text-slate-400 dark:text-slate-500"></i>
+            </div>
+          </div>
+
+          <!-- LISTADO DE USUARIOS EN TABLA RESPONSIVA -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                  <th class="pb-3">Nombre / Usuario</th>
+                  <th class="pb-3">Carrera</th>
+                  <th class="pb-3 text-center">Chats</th>
+                  <th class="pb-3 text-center">Posts / Comments</th>
+                  <th class="pb-3">Roles</th>
+                  <th class="pb-3 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm dark:divide-slate-800">
+                <tr *ngIf="isLoadingUsers" class="text-center">
+                  <td colspan="6" class="py-8 text-slate-500 dark:text-slate-400">
+                    Cargando usuarios...
+                  </td>
+                </tr>
+                <tr *ngIf="!isLoadingUsers && filteredUsers.length === 0" class="text-center">
+                  <td colspan="6" class="py-8 text-slate-500 dark:text-slate-400">
+                    No se encontraron usuarios coincidentes.
+                  </td>
+                </tr>
+
+                <tr *ngFor="let user of filteredUsers" class="hover:bg-blue-50/20 dark:hover:bg-slate-950/20 transition-colors">
+                  <td class="py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-800 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs">
+                        {{ user.display_name ? user.display_name.substring(0, 2).toUpperCase() : 'U' }}
+                      </div>
+                      <div>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">{{ user.display_name }}</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500">&#64;{{ user.username }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="py-4 text-slate-600 dark:text-slate-300 text-xs">{{ user.career || 'N/A' }}</td>
+                  <td class="py-4 text-center font-semibold text-slate-700 dark:text-slate-300">{{ user.chats_count }}</td>
+                  <td class="py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ user.posts_count }}</span> / 
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ user.comments_count }}</span>
+                  </td>
+                  <td class="py-4">
+                    <div class="flex flex-wrap gap-1">
+                      <span *ngFor="let role of user.roles" 
+                            [class.bg-violet-100]="role === 'admin'" [class.text-violet-700]="role === 'admin'"
+                            [class.dark:bg-violet-950/40]="role === 'admin'" [class.dark:text-violet-300]="role === 'admin'"
+                            [class.bg-slate-100]="role !== 'admin'" [class.text-slate-600]="role !== 'admin'"
+                            [class.dark:bg-slate-850]="role !== 'admin'" [class.dark:text-slate-400]="role !== 'admin'"
+                            class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase">
+                        {{ role }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="py-4">
+                    <div class="flex items-center justify-center gap-2">
+                      <button (click)="toggleRole(user)" 
+                              [title]="user.roles.includes('admin') ? 'Quitar Admin' : 'Hacer Admin'"
+                              class="rounded-full p-2 text-blue-500 transition hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:text-sky-400">
+                        <i class="fa-solid fa-user-shield text-xs"></i>
+                      </button>
+                      
+                      <button (click)="deleteUser(user)" title="Eliminar usuario"
+                              class="rounded-full p-2 text-red-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400">
+                        <i class="fa-regular fa-trash-can text-xs"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
