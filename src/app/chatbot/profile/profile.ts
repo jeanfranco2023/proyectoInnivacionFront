@@ -192,6 +192,18 @@ export class ProfileComponent implements OnInit, OnDestroy {
     return this.user?.career?.trim() || 'No definido';
   }
 
+  get email(): string {
+    return this.user?.email?.trim() || 'No definido';
+  }
+
+  get phoneNumber(): string {
+    return this.user?.phone_number?.trim() || 'No definido';
+  }
+
+  get isEmailVerified(): boolean {
+    return !!this.user?.is_email_verified;
+  }
+
   get rolesText(): string {
     const roles = this.user?.roles ?? [];
     return roles.length > 0 ? roles.join(', ') : 'No definido';

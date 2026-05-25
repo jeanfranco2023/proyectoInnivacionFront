@@ -18,6 +18,8 @@ export class RegisterComponent {
     password: '',
     display_name: '',
     career: '',
+    email: '',
+    phone_number: '',
   };
 
   isLoading = false;
@@ -189,10 +191,11 @@ export class RegisterComponent {
 
     this.authRegisterApiService.register(this.form).subscribe({
       next: () => {
-        this.successMessage = 'Cuenta creada correctamente. Ahora inicia sesión.';
+        this.successMessage = 'Cuenta creada. Se ha enviado un código de verificación a tu correo.';
+        const targetUsername = this.form.username;
         setTimeout(() => {
-          void this.router.navigate(['/login']);
-        }, 900);
+          void this.router.navigate(['/verify-email'], { queryParams: { username: targetUsername } });
+        }, 1500);
       },
       error: (error) => {
         this.errorMessage =

@@ -10,6 +10,7 @@ export interface ChatHistoryMessage {
   provider: string;
   model: string;
   content: string;
+  attachments?: AttachmentDTO[];
 }
 
 export interface ChatSummaryResponse {
@@ -36,6 +37,13 @@ export interface DeleteChatResponse {
   chat_id: string;
 }
 
+export interface AttachmentDTO {
+  type: string;
+  mime_type: string;
+  data: string;
+  name: string;
+}
+
 export interface StartChatRequest {
   user_id: string;
   message: string;
@@ -44,6 +52,7 @@ export interface StartChatRequest {
   title?: string;
   language?: string;
   voice_mode?: boolean;
+  attachments?: AttachmentDTO[];
 }
 
 export interface StartChatResponse {
@@ -60,6 +69,7 @@ export interface SendMessageRequest {
   model: string;
   language?: string;
   voice_mode?: boolean;
+  attachments?: AttachmentDTO[];
 }
 
 export interface SendMessageResponse {

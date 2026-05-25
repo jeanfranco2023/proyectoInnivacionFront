@@ -70,6 +70,24 @@
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Carrera</p>
             <p class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ career }}</p>
           </div>
+
+          <div class="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/80">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              Correo electrónico
+              <span *ngIf="isEmailVerified" class="inline-flex items-center gap-0.5 rounded bg-emerald-500/10 px-1 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400" title="Cuenta verificada en dos pasos">
+                <i class="fa-solid fa-circle-check"></i> Verificado
+              </span>
+              <span *ngIf="!isEmailVerified" class="inline-flex items-center gap-0.5 rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-bold text-red-600 dark:text-red-400">
+                Pendiente
+              </span>
+            </p>
+            <p class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{{ email }}</p>
+          </div>
+
+          <div class="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/80">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Teléfono celular</p>
+            <p class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ phoneNumber }}</p>
+          </div>
         </div>
       </article>
 

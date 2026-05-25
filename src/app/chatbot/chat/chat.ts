@@ -2,7 +2,7 @@ import { Component, ChangeDetectorRef, HostListener, OnDestroy, OnInit, ElementR
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { distinctUntilChanged, firstValueFrom, map, Subscription } from 'rxjs';
+import { distinctUntilChanged, firstValueFrom, map, Subscription, timeout } from 'rxjs';
 import { marked } from 'marked';
 
 import { ChatApiService } from '../../service/chat/chat-api.service';
@@ -16,6 +16,7 @@ import {
   ChatDetailResponse,
   ChatSummaryResponse,
   SharedPromptResponse,
+  AttachmentDTO,
 } from '../../models/chat/chat-api.types';
 import { enviroment } from '../../../environments/enviroment';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -189,7 +190,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private currentUsername: string = 'demo';
   userInput: string = '';
   selectedProvider: AiProvider = 'gemini';
-  selectedModel: string = 'gemini-1.5-flash';
+  selectedModel: string = 'gemini-2.5-flash';
   isSending: boolean = false;
   isListening: boolean = false;
   searchTerm: string = '';
@@ -199,7 +200,6 @@ export class ChatComponent implements OnInit, OnDestroy {
   micStatusType: 'info' | 'error' | 'success' = 'info';
   isSpeechPlaying: boolean = false;
   isSpeechPaused: boolean = false;
-  isUserMenuOpen: boolean = false;
   isLoadingChats: boolean = false;
   isChatLoading: boolean = false;
   chatModalMode: 'rename' | 'delete' | null = null;
@@ -207,14 +207,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   chatModalTitleDraft: string = '';
   isChatModalSubmitting: boolean = false;
   private lastInputWasVoice: boolean = false;
-  isLoadingSharedPrompts: boolean = false;
   isShareModalOpen: boolean = false;
   isExportMenuOpen: boolean = false;
   isExportingSummary: boolean = false;
   isSharingPrompt: boolean = false;
-  shareRecipient: string = '';
-  shareScope: ShareScope = 'prompt';
-  shareDraftText: string = '';
   shareDraftTitle: string = '';
   shareStatusMessage: string = '';
   shareResultUrl: string = '';
@@ -224,6 +220,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   messages: ChatMessage[] = [];
   misChats: ChatItem[] = [];
   sharedPrompts: SharedPromptResponse[] = [];
+  selectedFiles: any[] = [];
   private readonly chatCache = new Map<string, ChatItem>();
   private recognition: any = null;
   private mediaRecorder: MediaRecorder | null = null;
@@ -257,7 +254,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   // Modelos predefinidos por proveedor
   modelOptionsByProvider: { [key in AiProvider]?: string[] } = {
-    gemini: ['gemini-1.5-flash']
+    gemini: ['gemini-2.5-flash']
   };
 
   // Dropdown del agente
@@ -386,10 +383,22 @@ export class ChatComponent implements OnInit, OnDestroy {
       favorito: base?.favorito ?? false,
       provider,
       model: lastWithModel?.model || base?.model || fallbackModel,
-      historial: (chat.history || []).map((message) => ({
-        role: message.role === 'user' ? 'user' : 'bot',
-        text: message.content,
-      })),
+      historial: (chat.history || []).reduce<ChatMessage[]>((acc, message) => {
+        if (message.attachments && Array.isArray(message.attachments)) {
+          for (const att of message.attachments) {
+            acc.push({
+              role: message.role === 'user' ? 'user' : 'bot',
+              text: att.name,
+              isFile: true
+            });
+          }
+        }
+        acc.push({
+          role: message.role === 'user' ? 'user' : 'bot',
+          text: message.content,
+        });
+        return acc;
+      }, []),
     };
   }
 
@@ -426,24 +435,19 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private async loadSharedPrompts() {
-    this.isLoadingSharedPrompts = true;
     try {
       this.sharedPrompts = await firstValueFrom(this.chatApiService.listSharedPrompts());
     } catch {
       this.sharedPrompts = [];
     } finally {
-      this.isLoadingSharedPrompts = false;
       this.cdr.detectChanges();
     }
-   }
+  }
 
-   openShareModal() {
+  openShareModal() {
     this.shareStatusMessage = '';
     this.shareResultUrl = '';
-    this.shareRecipient = '';
-    this.shareScope = 'chat';
     this.shareDraftTitle = this.activeChat?.titulo || 'Nuevo chat';
-    this.shareDraftText = this.buildChatShareText();
 
     this.isShareModalOpen = true;
     this.cdr.detectChanges();
@@ -452,23 +456,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   closeShareModal() {
     this.isShareModalOpen = false;
     this.isSharingPrompt = false;
-    this.shareRecipient = '';
-    this.shareScope = 'prompt';
-    this.shareDraftText = '';
     this.shareDraftTitle = '';
     this.shareStatusMessage = '';
-  }
-
-  onShareScopeChange(scope: ShareScope) {
-    this.shareScope = scope;
-
-    if (scope === 'chat') {
-      this.shareDraftText = this.buildChatShareText();
-    } else if (scope === 'custom' && !this.shareDraftText.trim()) {
-      this.shareDraftText = '';
-    }
-
-    this.cdr.detectChanges();
   }
 
   private buildChatShareText(): string {
@@ -660,25 +649,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   // ======================= GETTERS =======================
-  get favoritos() {
-    return this.misChats.filter((c) => {
-      const coincideFavorito = c.favorito;
-      const coincideBusqueda =
-        c.titulo.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        c.historial.some((m) => m.text.toLowerCase().includes(this.searchTerm.toLowerCase()));
-      return coincideFavorito && coincideBusqueda;
-    });
-  }
 
-  get promptsGenerales() {
-    return this.misChats.filter((c) => {
-      const coincideGeneral = !c.favorito;
-      const coincideBusqueda =
-        c.titulo.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        c.historial.some((m) => m.text.toLowerCase().includes(this.searchTerm.toLowerCase()));
-      return coincideGeneral && coincideBusqueda;
-    });
-  }
 
   get promptUnifiedList(): PromptListItem[] {
     const search = this.searchTerm.toLowerCase();
@@ -746,21 +717,6 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleDarkMode() {
-    const nextPreference: ThemePreference = this.isDarkMode ? 'light' : 'dark';
-    this.applyThemePreference(nextPreference);
-    void this.persistThemePreference(nextPreference);
-  }
-
-  toggleUserMenu(event?: Event) {
-    event?.stopPropagation();
-    this.isUserMenuOpen = !this.isUserMenuOpen;
-  }
-
-  closeUserMenu() {
-    this.isUserMenuOpen = false;
-  }
-
   private async navigateSafely(url: string) {
     try {
       const navigated = await this.router.navigateByUrl(url);
@@ -771,24 +727,6 @@ export class ChatComponent implements OnInit, OnDestroy {
       // Fallback para navegadores/extensiones que interceptan history.pushState.
       globalThis.location?.assign(url);
     }
-  }
-
-  onUserMenuAction(action: 'profile' | 'settings' | 'theme' | 'logout') {
-    if (action === 'profile') {
-      void this.navigateSafely('/profile');
-      this.closeSidebarOnMobile();
-    }
-    if (action === 'settings') {
-      void this.navigateSafely('/profile');
-      this.closeSidebarOnMobile();
-    }
-    if (action === 'theme') {
-      this.toggleDarkMode();
-    }
-    if (action === 'logout') {
-      this.logout();
-    }
-    this.closeUserMenu();
   }
 
   toggleExportMenu(event?: Event) {
@@ -808,7 +746,19 @@ export class ChatComponent implements OnInit, OnDestroy {
       // Preparar últimos N mensajes para enviar al backend
       const messagesToSend = this.prepareMessagesForSummary();
       if (messagesToSend.length === 0) {
-        this.setMicStatus('No hay contenido suficiente para generar un resumen.', 'error');
+        const localReport = this.buildExecutiveReport();
+        if (!localReport) {
+          this.setMicStatus('No hay contenido suficiente en la conversación.', 'error');
+          return;
+        }
+        const safeBaseName = this.buildSafeFileName(localReport.title);
+        this.setMicStatus('Descargando reporte ejecutivo local...', 'info');
+        if (format === 'pdf') {
+          await this.downloadSummaryAsPdf(localReport, safeBaseName);
+        } else {
+          this.downloadSummaryAsTxt(localReport, safeBaseName);
+        }
+        this.setMicStatus('Conversación descargada correctamente.', 'success');
         return;
       }
 
@@ -828,7 +778,7 @@ export class ChatComponent implements OnInit, OnDestroy {
             language: 'es',
             max_bot_messages: 10,
             max_total_messages: 20,
-          })
+          }).pipe(timeout(5000))
         );
         this.lastSummaryCacheKey = summaryCacheKey;
         this.lastSummaryCacheValue = summary;
@@ -851,14 +801,33 @@ export class ChatComponent implements OnInit, OnDestroy {
       if (format === 'pdf') {
         await this.downloadSummaryAsPdf(exportReport, safeBaseName);
       } else {
-        this.downloadSummaryAsDoc(exportReport, safeBaseName);
+        this.downloadSummaryAsTxt(exportReport, safeBaseName);
       }
 
       this.setMicStatus('Informe exportado correctamente.', 'success');
     } catch (error) {
-      console.error('Error generating summary:', error);
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      this.setMicStatus(`Error al generar resumen: ${errorMsg}`, 'error');
+      console.error('Error generating summary, falling back to local executive report:', error);
+      try {
+        const localReport = this.buildExecutiveReport();
+        if (!localReport) {
+          this.setMicStatus('No hay contenido suficiente en la conversación.', 'error');
+          return;
+        }
+
+        const safeBaseName = this.buildSafeFileName(localReport.title);
+        this.setMicStatus('Descargando reporte ejecutivo local...', 'info');
+
+        if (format === 'pdf') {
+          await this.downloadSummaryAsPdf(localReport, safeBaseName);
+        } else {
+          this.downloadSummaryAsTxt(localReport, safeBaseName);
+        }
+        this.setMicStatus('Conversación descargada correctamente.', 'success');
+      } catch (fallbackError) {
+        console.error('Fallback export also failed:', fallbackError);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.setMicStatus(`Error al exportar: ${errorMsg}`, 'error');
+      }
     } finally {
       this.isExportingSummary = false;
       this.closeExportMenu();
@@ -929,7 +898,6 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   @HostListener('document:click')
   onDocumentClick() {
-    this.closeUserMenu();
     this.closeExportMenu();
     // Cerrar dropdown del agente si se hace clic fuera
     if (this.providerDropdownOpen) {
@@ -1020,7 +988,6 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.closeChatModal();
       return;
     }
-    this.closeUserMenu();
     this.closeExportMenu();
     this.providerDropdownOpen = false;
     this.modelDropdownOpen = false;
@@ -1063,21 +1030,52 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   async sendMessage() {
-    if (!this.userInput.trim() || this.isSending) return;
+    if ((!this.userInput.trim() && this.selectedFiles.length === 0) || this.isSending) return;
 
     const voiceMode = this.lastInputWasVoice;
     this.lastInputWasVoice = false;
-    const promptActual = this.userInput.trim();
+    let promptActual = this.userInput.trim();
+    if (!promptActual && this.selectedFiles.length > 0) {
+      promptActual = 'Analiza los archivos adjuntos.';
+    }
+
+    const attachmentsPayload: AttachmentDTO[] | undefined = this.selectedFiles.length > 0
+      ? this.selectedFiles.map(file => ({
+          type: file.type,
+          mime_type: file.mime_type,
+          data: file.data,
+          name: file.name
+        }))
+      : undefined;
 
     this.ensureActiveChat(promptActual);
     this.moveActiveChatToBottom();
     this.scrollChatListToBottom();
 
+    if (this.selectedFiles && this.selectedFiles.length > 0) {
+      for (const file of this.selectedFiles) {
+        this.messages.push({
+          role: 'user',
+          text: file.name,
+          isFile: true
+        });
+      }
+    }
     this.messages.push({ role: 'user', text: promptActual });
     this.invalidateSummaryCache();
     this.userInput = '';
     this.resetMessageTextareaHeight();
     this.scrollToBottom();
+
+    // Clear selected files immediately so they don't show in the input header
+    if (this.selectedFiles && this.selectedFiles.length > 0) {
+      this.selectedFiles.forEach(file => {
+        if (file.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl);
+        }
+      });
+      this.selectedFiles = [];
+    }
 
     const liveStreamEnabled = false;
     const streamingBotIndex = liveStreamEnabled ? this.createStreamingBotMessage() : null;
@@ -1105,6 +1103,7 @@ export class ChatComponent implements OnInit, OnDestroy {
                   this.updateStreamingBotMessage(streamingBotIndex, streamedReply);
                 }
               },
+              attachmentsPayload
             );
           } catch (error) {
             const streamStatus =
@@ -1126,14 +1125,14 @@ export class ChatComponent implements OnInit, OnDestroy {
                 'El stream no estuvo disponible. Reintentando en modo estándar...',
                 'info',
               );
-              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode, attachmentsPayload);
             } else {
               throw error;
             }
           }
         } else {
           try {
-            botReply = await this.sendMessageToExistingChat(previousChatId, promptActual, activeModel, voiceMode);
+            botReply = await this.sendMessageToExistingChat(previousChatId, promptActual, activeModel, voiceMode, attachmentsPayload);
           } catch (error) {
             if (!this.isRetryableGatewayError(error)) {
               throw error;
@@ -1145,7 +1144,7 @@ export class ChatComponent implements OnInit, OnDestroy {
               'El servidor no pudo continuar este chat. Reintentando en una nueva conversación...',
               'info',
             );
-            botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+            botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode, attachmentsPayload);
           }
         }
       } else {
@@ -1161,6 +1160,7 @@ export class ChatComponent implements OnInit, OnDestroy {
                   this.updateStreamingBotMessage(streamingBotIndex, streamedReply);
                 }
               },
+              attachmentsPayload
             );
           } catch (error) {
             const streamStatus =
@@ -1172,13 +1172,13 @@ export class ChatComponent implements OnInit, OnDestroy {
 
             if (streamStatus === 404 || streamStatus === 405 || streamStatus === 501) {
               this.setMicStatus('El stream no estuvo disponible. Reintentando en modo estándar...', 'info');
-              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+              botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode, attachmentsPayload);
             } else {
               throw error;
             }
           }
         } else {
-          botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode);
+          botReply = await this.startChatInBackend(promptActual, activeModel, voiceMode, attachmentsPayload);
         }
       }
 
@@ -1320,10 +1320,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.closeSidebarOnMobile();
   }
 
-  marcarFavorito(event: Event, chat: ChatItem) {
-    event.stopPropagation();
-    chat.favorito = !chat.favorito;
-  }
+
 
   resetChat() {
     this.messages = [];
@@ -1447,6 +1444,172 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
+  private compressImage(file: File): Promise<{ data: string; mime_type: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1024;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+          }
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          const base64Data = dataUrl.split(',')[1];
+          resolve({ data: base64Data, mime_type: 'image/jpeg' });
+        };
+        img.onerror = (err) => reject(err);
+        img.src = e.target.result;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private readAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        const base64Data = e.target.result.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private formatBytes(bytes: number, decimals = 1): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
+  async processFile(file: File) {
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      this.setMicStatus(`El archivo "${file.name}" supera el límite de 5MB.`, 'error');
+      return;
+    }
+
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+
+    if (!isImage && !isPdf) {
+      this.setMicStatus(`Formato no soportado para "${file.name}". Solo se admiten imágenes y PDFs.`, 'error');
+      return;
+    }
+
+    const currentImagesCount = this.selectedFiles.filter(f => f.type === 'image').length;
+    const currentDocsCount = this.selectedFiles.filter(f => f.type === 'document').length;
+
+    if (isImage) {
+      if (currentImagesCount >= 3) {
+        this.setMicStatus('Límite excedido: Solo puedes subir un máximo de 3 imágenes.', 'error');
+        return;
+      }
+      try {
+        const compressed = await this.compressImage(file);
+        const previewUrl = URL.createObjectURL(file);
+        this.selectedFiles.push({
+          type: 'image',
+          mime_type: compressed.mime_type,
+          data: compressed.data,
+          name: file.name,
+          sizeText: this.formatBytes(file.size),
+          previewUrl: previewUrl,
+          originalFile: file
+        });
+        this.cdr.detectChanges();
+      } catch (err) {
+        this.setMicStatus(`Error al procesar la imagen "${file.name}".`, 'error');
+      }
+    } else if (isPdf) {
+      if (currentDocsCount >= 1) {
+        this.setMicStatus('Límite excedido: Solo puedes subir un máximo de 1 documento PDF.', 'error');
+        return;
+      }
+      try {
+        const base64Data = await this.readAsBase64(file);
+        this.selectedFiles.push({
+          type: 'document',
+          mime_type: file.type,
+          data: base64Data,
+          name: file.name,
+          sizeText: this.formatBytes(file.size),
+          originalFile: file
+        });
+        this.cdr.detectChanges();
+      } catch (err) {
+        this.setMicStatus(`Error al procesar el PDF "${file.name}".`, 'error');
+      }
+    }
+  }
+
+  async onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const files = Array.from(input.files);
+    input.value = '';
+
+    for (const file of files) {
+      await this.processFile(file);
+    }
+  }
+
+  @HostListener('window:paste', ['$event'])
+  async onPaste(event: ClipboardEvent) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    let imageFound = false;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          imageFound = true;
+          const name = file.name || `imagen_pegada_${Date.now()}.png`;
+          const renamedFile = new File([file], name, { type: file.type });
+          await this.processFile(renamedFile);
+        }
+      }
+    }
+
+    if (imageFound) {
+      event.preventDefault();
+    }
+  }
+
+  removeSelectedFile(idx: number) {
+    if (idx >= 0 && idx < this.selectedFiles.length) {
+      const file = this.selectedFiles[idx];
+      if (file.previewUrl) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
+      this.selectedFiles.splice(idx, 1);
+      this.cdr.detectChanges();
+    }
+  }
+
   private ensureActiveChat(firstMessage: string) {
     if (this.activeChat) return;
 
@@ -1463,7 +1626,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.misChats.push(nuevoChat);
   }
 
-  private async startChatInBackend(firstMessage: string, model: string, voiceMode = false): Promise<string> {
+  private async startChatInBackend(firstMessage: string, model: string, voiceMode = false, attachments?: AttachmentDTO[]): Promise<string> {
     const response = await firstValueFrom(
       this.chatApiService.startChat({
         user_id: this.currentUsername,
@@ -1473,6 +1636,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         title: this.activeChat?.titulo || 'Nuevo chat',
         language: 'es',
         voice_mode: voiceMode,
+        attachments,
       }),
     );
 
@@ -1491,6 +1655,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     model: string,
     voiceMode = false,
     onChunk: (chunk: string) => void,
+    attachments?: AttachmentDTO[],
   ): Promise<string> {
     const result = await this.chatApiService.streamStartChat(
       {
@@ -1501,6 +1666,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         title: this.activeChat?.titulo || 'Nuevo chat',
         language: 'es',
         voice_mode: voiceMode,
+        attachments,
       },
       onChunk,
     );
@@ -1520,6 +1686,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     message: string,
     model: string,
     voiceMode = false,
+    attachments?: AttachmentDTO[],
   ): Promise<string> {
     const response = await firstValueFrom(
       this.chatApiService.sendMessage(chatId, {
@@ -1528,6 +1695,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         model,
         language: 'es',
         voice_mode: voiceMode,
+        attachments,
       }),
     );
 
@@ -1545,6 +1713,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     model: string,
     voiceMode = false,
     onChunk: (chunk: string) => void,
+    attachments?: AttachmentDTO[],
   ): Promise<string> {
     const text = await this.chatApiService.streamSendMessage(
       chatId,
@@ -1554,6 +1723,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         model,
         language: 'es',
         voice_mode: voiceMode,
+        attachments,
       },
       onChunk,
     );
@@ -2436,7 +2606,6 @@ export class ChatComponent implements OnInit, OnDestroy {
     return fallbackTopics.length > 0 ? fallbackTopics.join(', ') : 'los temas principales tratados';
   }
 
-  // ======================= EXPORTACION =======================
   private async downloadSummaryAsPdf(report: ExportReport, baseFileName: string) {
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
@@ -2570,6 +2739,40 @@ export class ChatComponent implements OnInit, OnDestroy {
 
     const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
     this.downloadBlob(blob, `${baseFileName}.doc`);
+  }
+
+  private downloadSummaryAsTxt(report: ExportReport, baseFileName: string) {
+    const lines: string[] = [];
+    lines.push('============================================================');
+    lines.push('INFORME EJECUTIVO DE CONVERSACIÓN');
+    lines.push('============================================================');
+    lines.push(`Título: ${report.title}`);
+    lines.push(`Fecha: ${report.generatedAt}`);
+    lines.push('------------------------------------------------------------');
+    lines.push('');
+    lines.push('1. RESUMEN GENERAL EN LENGUAJE CLARO');
+    lines.push(report.introduction);
+    lines.push('');
+    lines.push('2. TÓPICOS TÉCNICOS DETECTADOS');
+    report.mlTopics.forEach((item) => lines.push(`* ${item}`));
+    lines.push('');
+    lines.push('3. ANÁLISIS DE LOS PUNTOS TRATADOS');
+    report.analysis.forEach((item) => lines.push(`* ${item}`));
+    lines.push('');
+    lines.push('4. CONCEPTOS CLAVE DETECTADOS');
+    report.keyConcepts.forEach((item) => lines.push(`* ${item}`));
+    lines.push('');
+    lines.push('5. CONCLUSIONES');
+    report.conclusions.forEach((item) => lines.push(`* ${item}`));
+    lines.push('');
+    lines.push('6. RECOMENDACIONES Y CONSEJOS POSTERIORES');
+    report.recommendations.forEach((item) => lines.push(`* ${item}`));
+    lines.push('');
+    lines.push('============================================================');
+    lines.push('Generado automáticamente por MentorCore');
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    this.downloadBlob(blob, `${baseFileName}.txt`);
   }
 
   private downloadBlob(blob: Blob, fileName: string) {
@@ -3059,27 +3262,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFileSelected(event: any) {
-    const file: File = event.target.files[0];
-    if (file) {
-      this.messages.push({
-        role: 'user',
-        text: file.name,
-        isFile: true,
-      });
-      this.scrollToBottom();
 
-      setTimeout(() => {
-        this.addBotMessage(
-          `He recibido tu archivo "${file.name}". Lo estoy analizando para darte la mejor mentoría.`,
-        );
-        this.cdr.detectChanges();
-        this.scrollToBottom();
-      }, 1000);
-
-      event.target.value = '';
-    }
-  }
 
    ngOnInit() {
      this.sidebarSubscription = this.sidebarToggleService.mobileSidebarOpen$.subscribe(open => {

@@ -59,4 +59,22 @@ export class AuthApiService {
       responseType: 'blob',
     });
   }
+
+  forgotPassword(email: string): Observable<{ sent: boolean }> {
+    return this.http
+      .post<ApiEnvelope<{ sent: boolean }>>(`${this.baseUrl}/auth/forgot-password`, { email })
+      .pipe(map((res) => res.data));
+  }
+
+  verifyResetCode(email: string, code: string): Observable<{ valid: boolean }> {
+    return this.http
+      .post<ApiEnvelope<{ valid: boolean }>>(`${this.baseUrl}/auth/verify-reset-code`, { email, code })
+      .pipe(map((res) => res.data));
+  }
+
+  resetPassword(email: string, code: string, new_password: string): Observable<{ reset: boolean }> {
+    return this.http
+      .post<ApiEnvelope<{ reset: boolean }>>(`${this.baseUrl}/auth/reset-password`, { email, code, new_password })
+      .pipe(map((res) => res.data));
+  }
 }

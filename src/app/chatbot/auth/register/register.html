@@ -45,6 +45,28 @@
         </div>
 
         <div class="space-y-2">
+          <label for="email" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Correo electrónico</label>
+          <div class="relative">
+            <i class="fa-solid fa-envelope pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="email" type="email" [(ngModel)]="form.email" name="email" autocomplete="email" required
+                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
+                   class="mc-auth-input w-full rounded-2xl px-11 py-3 text-sm outline-none transition"
+                   placeholder="tu@correo.com">
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="phone_number" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Teléfono celular</label>
+          <div class="relative">
+            <i class="fa-solid fa-phone pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="phone_number" type="tel" [(ngModel)]="form.phone_number" name="phone_number" autocomplete="tel" required
+                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
+                   class="mc-auth-input w-full rounded-2xl px-11 py-3 text-sm outline-none transition"
+                   placeholder="+51 999 999 999">
+          </div>
+        </div>
+
+        <div class="space-y-2">
           <label for="faculty" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Facultad</label>
           <div class="relative">
             <i class="fa-solid fa-building-columns pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>

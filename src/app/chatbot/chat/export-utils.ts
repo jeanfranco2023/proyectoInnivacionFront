@@ -53,10 +53,15 @@ export function generateOptimizedPdf(
   // Procesar mensajes sin crear objetos intermedios innecesarios
   for (const message of messages) {
     // Omitir mensajes vacíos
-    const content = message.isFile ? `[Archivo: ${message.text}]` : (message.text || message.html || '');
+    let content = message.isFile ? `[Archivo: ${message.text}]` : (message.text || message.html || '');
     if (!content) continue;
 
-    const prefix = message.role === 'user' ? '👤 Tú: ' : '🤖 Asistente: ';
+    // Si no hay texto plano pero hay HTML, limpiar los tags
+    if (!message.text && message.html) {
+      content = content.replace(/<[^>]*>/g, '');
+    }
+
+    const prefix = message.role === 'user' ? 'Tú: ' : 'Asistente: ';
     const isUser = message.role === 'user';
 
     // Cambiar color según el rol para mejor legibilidad sin overhead
@@ -74,17 +79,17 @@ export function generateOptimizedPdf(
     const fullText = prefix + content;
     const lines = doc.splitTextToSize(fullText, textWidth);
 
-    // Verificar si cabe en la página actual
-    const neededSpace = lines.length * 5.5;
-    if (yPosition + neededSpace > pageHeight - margin) {
-      // Agregar nueva página sin delay
-      doc.addPage();
-      yPosition = margin;
+    // Escribir línea por línea con control de página automático
+    const lineHeight = 5.5;
+    for (const line of lines) {
+      if (yPosition + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin + 5;
+      }
+      doc.text(line, margin, yPosition);
+      yPosition += lineHeight;
     }
-
-    // Escribir líneas sin procesamiento extra
-    doc.text(lines, margin, yPosition);
-    yPosition += neededSpace + 2;
+    yPosition += 2; // Espacio adicional de separación entre mensajes
   }
 
   // Agregar pie de página con número de página
@@ -137,8 +142,12 @@ export function generateOptimizedTextDoc(
 
   // Agregar mensajes sin procesamiento extra
   for (const message of messages) {
-    const content = message.isFile ? `[Archivo: ${message.text}]` : (message.text || message.html || '');
+    let content = message.isFile ? `[Archivo: ${message.text}]` : (message.text || message.html || '');
     if (!content) continue;
+
+    if (!message.text && message.html) {
+      content = content.replace(/<[^>]*>/g, '');
+    }
 
     const prefix = message.role === 'user' ? '[TÚ]' : '[ASISTENTE]';
     lines.push(`${prefix}: ${content}`);

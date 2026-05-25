@@ -166,13 +166,24 @@ export class LoginComponent implements OnInit {
       },
       error: (error) => {
         const status = Number(error?.status ?? 0);
-        const backendMessage = (error?.error?.error?.message || '').toString().toLowerCase();
+        const backendMessage = (error?.error?.error?.message || '').toString().toUpperCase();
 
+        if (backendMessage === 'EMAIL_UNVERIFIED') {
+          this.errorMessage = 'Tu correo no ha sido verificado. Redirigiendo a verificación...';
+          const targetUsername = this.form.username;
+          this.cdr.detectChanges();
+          setTimeout(() => {
+            void this.router.navigate(['/verify-email'], { queryParams: { username: targetUsername } });
+          }, 1500);
+          return;
+        }
+
+        const lowMessage = backendMessage.toLowerCase();
         if (status === 422) {
-          if (backendMessage.includes('correo') || backendMessage.includes('usuario') || backendMessage.includes('email')) {
+          if (lowMessage.includes('correo') || lowMessage.includes('usuario') || lowMessage.includes('email')) {
             this.fieldErrors.username = 'Verifica el usuario/correo ingresado.';
           }
-          if (backendMessage.includes('contrase') || backendMessage.includes('password')) {
+          if (lowMessage.includes('contrase') || lowMessage.includes('password')) {
             this.fieldErrors.password = 'Verifica la contraseña ingresada.';
           }
         }

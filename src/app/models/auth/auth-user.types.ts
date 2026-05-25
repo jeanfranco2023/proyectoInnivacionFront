@@ -3,6 +3,9 @@ export interface AuthUser {
   display_name: string;
   career: string;
   roles: string[];
+  email?: string;
+  phone_number?: string;
+  is_email_verified?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
   is_dark?: boolean;
   profile_image_url?: string | null;

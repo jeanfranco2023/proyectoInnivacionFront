@@ -1,0 +1,55 @@
+<div class="mc-auth-shell">
+  <div class="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md items-center justify-center sm:min-h-[calc(100dvh-4rem)]">
+    <div class="mc-auth-panel w-full p-6 sm:p-10">
+      <div class="mb-6 text-center sm:mb-8">
+        <div class="mc-auth-badge mx-auto mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]">
+          <img src="/SmileWhite.png" alt="MentorCore" class="h-5 w-5 object-contain">
+          MentorCore
+        </div>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">Código de Verificación</h1>
+        <p class="mc-auth-muted mt-2 text-sm leading-6">
+          Ingresa el código de 2 pasos enviado a tu correo electrónico para validar la existencia del mismo.
+        </p>
+        <span class="mt-1 inline-block rounded-lg bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+          Usuario: @{{ username }}
+        </span>
+      </div>
+
+      <form class="space-y-5" (ngSubmit)="verify()" autocomplete="off">
+        <div class="space-y-2">
+          <label for="code" class="block text-center text-sm font-medium text-slate-700 dark:text-slate-300">Código de 6 dígitos</label>
+          <div class="relative">
+            <i class="fa-solid fa-key pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="code" type="text" [(ngModel)]="code" name="code" required maxLength="6"
+                   class="mc-auth-input w-full rounded-2xl px-11 py-4 text-center text-xl font-bold tracking-[0.4em] outline-none transition placeholder:tracking-normal placeholder:font-normal"
+                   placeholder="000000">
+          </div>
+        </div>
+
+        <button type="submit" [disabled]="isLoading || !code.trim()"
+                class="mc-primary-btn flex w-full items-center justify-center rounded-2xl px-4 py-3.5 text-sm font-semibold transition">
+          {{ isLoading ? 'Verificando...' : 'Verificar correo' }}
+        </button>
+
+        <p *ngIf="errorMessage" class="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200">
+          {{ errorMessage }}
+        </p>
+
+        <p *ngIf="successMessage" class="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-200">
+          {{ successMessage }}
+        </p>
+      </form>
+
+      <div class="mt-6 flex flex-col items-center justify-center gap-3 text-sm">
+        <button type="button" [disabled]="resendCooldown > 0 || isLoading" (click)="resendCode()"
+                class="font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
+          {{ resendCooldown > 0 ? 'Reenviar código en ' + resendCooldown + 's' : 'No recibí el código. Reenviar' }}
+        </button>
+
+        <a routerLink="/login" class="mc-auth-link font-semibold transition mt-2">
+          Volver a iniciar sesión
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

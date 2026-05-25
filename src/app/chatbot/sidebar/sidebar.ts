@@ -106,9 +106,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.closeUserMenu();
   }
 
-  onUserMenuAction(action: 'profile' | 'settings' | 'theme' | 'logout') {
+  onUserMenuAction(action: 'profile' | 'theme' | 'logout') {
     this.closeUserMenu();
-    if (action === 'profile' || action === 'settings') {
+    if (action === 'profile') {
       void this.router.navigateByUrl('/profile');
       this.closeSidebarOnMobile();
     } else if (action === 'theme') {

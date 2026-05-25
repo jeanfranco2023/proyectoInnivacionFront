@@ -157,6 +157,21 @@
 
       <!-- Input principal -->
       <div class="mx-auto w-full max-w-5xl">
+        <!-- CONTENEDOR DE PREVISUALIZACIÓN DE ADJUNTOS -->
+        <div *ngIf="selectedFiles && selectedFiles.length > 0" class="mb-2 flex flex-wrap gap-2 px-4 py-2 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md rounded-2xl border border-blue-200 dark:border-slate-800/80">
+          <div *ngFor="let file of selectedFiles; let idx = index" class="relative flex items-center gap-2 bg-blue-50/70 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-blue-100 dark:border-slate-700/60">
+            <img *ngIf="file.type === 'image'" [src]="file.previewUrl" class="h-8 w-8 object-cover rounded-lg border border-slate-300 dark:border-slate-600" />
+            <i *ngIf="file.type === 'document'" class="fa-solid fa-file-pdf text-red-500 text-lg"></i>
+            <div class="min-w-0 max-w-[150px]">
+              <p class="text-xs font-semibold truncate text-slate-800 dark:text-slate-100">{{ file.name }}</p>
+              <p class="text-[9px] text-slate-500 dark:text-slate-400">{{ file.sizeText }}</p>
+            </div>
+            <button type="button" (click)="removeSelectedFile(idx)" class="text-slate-400 hover:text-red-500 transition p-1">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+        </div>
+
         <div class="mc-card flex items-end gap-2 rounded-[2rem] border border-blue-200 bg-white/90 px-3 py-3 shadow-2xl shadow-blue-200/50 backdrop-blur-md transition focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-400/10 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-slate-950/20">
           <textarea #messageTextarea
                     [(ngModel)]="userInput"
@@ -327,7 +342,7 @@
         (click)="exportChatSummary('doc')"
         [disabled]="isExportingSummary"
         class="flex w-full items-center gap-2 border-t border-blue-100 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800">
-        <i class="fa-regular fa-file-word"></i>
+        <i class="fa-regular fa-file-lines"></i>
         {{ isExportingSummary ? 'Generando...' : 'TXT' }}
       </button>
     </div>

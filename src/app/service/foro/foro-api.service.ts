@@ -18,6 +18,8 @@ export interface Post {
   is_liked: boolean;
   faculty?: string;
   career?: string;
+  file_url?: string;
+  file_name?: string;
 }
 
 export interface Comment {
@@ -27,6 +29,8 @@ export interface Comment {
   author_username: string;
   author_display_name: string;
   created_at: string;
+  file_url?: string;
+  file_name?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,9 +55,18 @@ export class ForoApiService {
       .pipe(map((res) => res.data));
   }
 
-  createPost(title: string, content: string, faculty: string, career: string): Observable<Post> {
+  createPost(title: string, content: string, faculty: string, career: string, file?: File): Observable<Post> {
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('content', content);
+    formData.append('faculty', faculty);
+    formData.append('career', career);
+    if (file) {
+      formData.append('file', file);
+    }
+    
     return this.http
-      .post<ApiEnvelope<Post>>(`${this.baseUrl}/forum/posts`, { title, content, faculty, career })
+      .post<ApiEnvelope<Post>>(`${this.baseUrl}/forum/posts`, formData)
       .pipe(map((res) => res.data));
   }
 
@@ -81,9 +94,15 @@ export class ForoApiService {
       .pipe(map((res) => res.data));
   }
 
-  createComment(postId: string, content: string): Observable<Comment> {
+  createComment(postId: string, content: string, file?: File): Observable<Comment> {
+    const formData = new FormData();
+    formData.append('content', content);
+    if (file) {
+      formData.append('file', file);
+    }
+    
     return this.http
-      .post<ApiEnvelope<Comment>>(`${this.baseUrl}/forum/posts/${postId}/comments`, { content })
+      .post<ApiEnvelope<Comment>>(`${this.baseUrl}/forum/posts/${postId}/comments`, formData)
       .pipe(map((res) => res.data));
   }
 

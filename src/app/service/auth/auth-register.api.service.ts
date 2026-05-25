@@ -17,5 +17,17 @@ export class AuthRegisterApiService {
       .post<ApiEnvelope<RegisterResponse>>(`${this.baseUrl}${enviroment.endpoints.authRegister}`, payload)
       .pipe(map((res) => res.data));
   }
+
+  verifyEmail(username: string, code: string): Observable<{ verified: boolean }> {
+    return this.http
+      .post<ApiEnvelope<{ verified: boolean }>>(`${this.baseUrl}/auth/verify-email`, { username, code })
+      .pipe(map((res) => res.data));
+  }
+
+  resendCode(username: string): Observable<{ sent: boolean }> {
+    return this.http
+      .post<ApiEnvelope<{ sent: boolean }>>(`${this.baseUrl}/auth/resend-code`, { username })
+      .pipe(map((res) => res.data));
+  }
 }
 

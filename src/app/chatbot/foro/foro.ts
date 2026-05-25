@@ -5,6 +5,7 @@ import { ForoApiService, Post, Comment } from '../../service/foro/foro-api.servi
 import { SessionService } from '../../service/auth/session.service';
 import { SidebarToggleService } from '../../service/sidebar/sidebar-toggle.service';
 import { SidebarComponent } from '../sidebar/sidebar';
+import { enviroment } from '../../../environments/enviroment';
 
 @Component({
   selector: 'app-foro',
@@ -22,7 +23,9 @@ export class ForoComponent implements OnInit {
   
   newPostTitle = '';
   newPostContent = '';
+  newPostFile: File | null = null;
   newCommentTexts: { [postId: string]: string } = {};
+  newCommentFiles: { [postId: string]: File | null } = {};
 
   currentUserUsername = 'demo';
   isAdmin = false;
@@ -37,6 +40,8 @@ export class ForoComponent implements OnInit {
   selectedFilterFaculty = '';
   selectedFilterCareer = '';
   filterCareersList: string[] = [];
+  activeFilterFaculties: string[] = [];
+  activeFilterCareersMap: { [key: string]: string[] } = {};
 
   // Formulario de nueva publicación
   newPostFaculty = '';
@@ -60,11 +65,17 @@ export class ForoComponent implements OnInit {
     this.loadPosts();
   }
 
+  getApiUrl(path: string | undefined): string {
+    if (!path) return '';
+    return `${enviroment.apiBaseUrl.trim()}${path}`;
+  }
+
   loadFaculties() {
     this.foroApiService.getFaculties().subscribe({
       next: (map) => {
         this.facultiesMap = map;
         this.facultyKeys = Object.keys(map);
+        this.setDefaultUserFacultyAndCareer();
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -73,12 +84,39 @@ export class ForoComponent implements OnInit {
     });
   }
 
+  setDefaultUserFacultyAndCareer() {
+    const user = this.sessionService.getUser();
+    if (!user || !user.career) return;
+
+    const userCareerNormalized = user.career.trim().toLowerCase();
+
+    for (const faculty of this.facultyKeys) {
+      const careers = this.facultiesMap[faculty] || [];
+      const foundCareer = careers.find(
+        (c) => c.trim().toLowerCase() === userCareerNormalized
+      );
+
+      if (foundCareer) {
+        this.newPostFaculty = faculty;
+        this.formCareersList = careers;
+        this.newPostCareer = foundCareer;
+        break;
+      }
+    }
+  }
+
   loadPosts() {
     this.isLoadingPosts = true;
     this.errorMessage = '';
     this.foroApiService.getPosts(this.selectedFilterCareer || undefined).subscribe({
       next: (posts) => {
         this.posts = posts;
+        
+        // Si no hay filtros aplicados, deducimos las facultades y carreras con posts existentes
+        if (!this.selectedFilterFaculty && !this.selectedFilterCareer) {
+          this.calculateActiveFilters(posts);
+        }
+
         this.isLoadingPosts = false;
         this.cdr.detectChanges();
       },
@@ -91,10 +129,37 @@ export class ForoComponent implements OnInit {
     });
   }
 
+  calculateActiveFilters(posts: any[]) {
+    const facultiesSet = new Set<string>();
+    const careersByFaculty: { [faculty: string]: Set<string> } = {};
+
+    for (const post of posts) {
+      const fac = post.faculty?.trim();
+      const car = post.career?.trim();
+
+      if (fac) {
+        facultiesSet.add(fac);
+        if (!careersByFaculty[fac]) {
+          careersByFaculty[fac] = new Set<string>();
+        }
+        if (car) {
+          careersByFaculty[fac].add(car);
+        }
+      }
+    }
+
+    this.activeFilterFaculties = Array.from(facultiesSet).sort();
+    
+    this.activeFilterCareersMap = {};
+    for (const fac of Object.keys(careersByFaculty)) {
+      this.activeFilterCareersMap[fac] = Array.from(careersByFaculty[fac]).sort();
+    }
+  }
+
   onFilterFacultyChange() {
     this.selectedFilterCareer = '';
     if (this.selectedFilterFaculty) {
-      this.filterCareersList = this.facultiesMap[this.selectedFilterFaculty] || [];
+      this.filterCareersList = this.activeFilterCareersMap[this.selectedFilterFaculty] || [];
     } else {
       this.filterCareersList = [];
     }
@@ -121,6 +186,13 @@ export class ForoComponent implements OnInit {
     this.loadPosts();
   }
 
+  onPostFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.newPostFile = file;
+    }
+  }
+
   createPost() {
     const title = this.newPostTitle.trim();
     const content = this.newPostContent.trim();
@@ -142,14 +214,13 @@ export class ForoComponent implements OnInit {
       return;
     }
 
-    this.foroApiService.createPost(title, content, faculty, career).subscribe({
+    this.foroApiService.createPost(title, content, faculty, career, this.newPostFile || undefined).subscribe({
       next: (newPost) => {
         this.posts.unshift(newPost);
         this.newPostTitle = '';
         this.newPostContent = '';
-        this.newPostFaculty = '';
-        this.newPostCareer = '';
-        this.formCareersList = [];
+        this.newPostFile = null;
+        this.setDefaultUserFacultyAndCareer();
         this.successMessage = '¡Publicación creada exitosamente!';
         this.errorMessage = '';
         setTimeout(() => {
@@ -226,11 +297,20 @@ export class ForoComponent implements OnInit {
     });
   }
 
+  onCommentFileSelected(event: any, postId: string) {
+    const file = event.target.files[0];
+    if (file) {
+      this.newCommentFiles[postId] = file;
+    }
+  }
+
   createComment(postId: string) {
     const text = this.newCommentTexts[postId]?.trim();
     if (!text) return;
+    
+    const file = this.newCommentFiles[postId];
 
-    this.foroApiService.createComment(postId, text).subscribe({
+    this.foroApiService.createComment(postId, text, file || undefined).subscribe({
       next: (newComment) => {
         if (!this.commentsByPost[postId]) {
           this.commentsByPost[postId] = [];
@@ -242,6 +322,7 @@ export class ForoComponent implements OnInit {
           post.comments_count = (post.comments_count || 0) + 1;
         }
         this.newCommentTexts[postId] = '';
+        this.newCommentFiles[postId] = null;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error creating comment:', err)
