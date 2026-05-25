@@ -189,6 +189,14 @@ export class RegisterComponent {
     this.isLoading = true;
     this.errorMessage = '';
 
+    // Validar correo con expresión regular robusta
+    const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+    if (!this.form.email || !emailRegex.test(this.form.email.trim())) {
+      this.errorMessage = 'El correo electrónico ingresado no es válido.';
+      this.isLoading = false;
+      return;
+    }
+
     // Derivar automáticamente el nombre de usuario único a partir del correo electrónico
     if (this.form.email) {
       this.form.username = this.form.email.trim().toLowerCase();
