@@ -51,7 +51,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
         if (user) {
           this.nombreUsuario = user.display_name || 'Seven';
           this.isAdmin = Array.isArray(user.roles) && user.roles.includes('admin');
-          this.isDarkMode = user.is_dark || document.documentElement.classList.contains('dark');
+          this.isDarkMode = !!user.isDark || document.documentElement.classList.contains('dark');
+          document.documentElement.classList.toggle('dark', this.isDarkMode);
           this.loadProfileImageFromSession();
         } else {
           this.nombreUsuario = 'Seven';

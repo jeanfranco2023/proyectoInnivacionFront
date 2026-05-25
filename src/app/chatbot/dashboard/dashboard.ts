@@ -128,6 +128,10 @@ export class DashboardComponent implements OnInit {
         if (res.deleted) {
           this.users = this.users.filter((u) => u.username !== user.username);
           this.filterUsers();
+          if (this.stats) {
+            this.stats.total_users = Math.max(0, this.stats.total_users - 1);
+          }
+          this.loadStats();
           this.successMessage = `Usuario @${user.username} eliminado correctamente.`;
           setTimeout(() => {
             this.successMessage = '';

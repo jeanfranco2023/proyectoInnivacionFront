@@ -56,7 +56,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     const currentUser = this.sessionService.getUser();
     const storedTheme = globalThis.localStorage?.getItem('chat-theme');
     const serverTheme =
-      currentUser?.is_dark === true ? 'dark' : currentUser?.is_dark === false ? 'light' : null;
+      currentUser?.isDark === true ? 'dark' : currentUser?.isDark === false ? 'light' : null;
     const initialTheme: 'light' | 'dark' =
       storedTheme === 'dark' || storedTheme === 'light'
         ? storedTheme

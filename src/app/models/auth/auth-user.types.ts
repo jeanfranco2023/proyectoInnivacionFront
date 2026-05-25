@@ -7,7 +7,7 @@ export interface AuthUser {
   phone_number?: string;
   is_email_verified?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
-  is_dark?: boolean;
+  isDark?: boolean;
   profile_image_url?: string | null;
 }
 

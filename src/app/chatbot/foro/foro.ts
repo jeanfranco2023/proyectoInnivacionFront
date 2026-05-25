@@ -181,7 +181,26 @@ export class ForoComponent implements OnInit, OnDestroy {
     const user = this.sessionService.getUser();
     if (!user || !user.career) return;
 
-    const userCareerNormalized = user.career.trim().toLowerCase();
+    if (this.isAdmin) {
+      this.newPostFaculty = '';
+      this.newPostCareer = '';
+      return;
+    }
+
+    let userCareer = user.career.trim();
+    
+    // Mapear de las carreras normalizadas de la DB a los valores reales del foro
+    if (userCareer === 'ingenieria_tecnologia') {
+      userCareer = 'Ingeniería de Sistemas';
+    } else if (userCareer === 'salud_ciencias_medicas') {
+      userCareer = 'Medicina Humana';
+    } else if (userCareer === 'derecho_normatividad') {
+      userCareer = 'Derecho';
+    } else if (userCareer === 'general') {
+      userCareer = 'Ingeniería de Sistemas';
+    }
+
+    const userCareerNormalized = userCareer.toLowerCase();
 
     for (const faculty of this.facultyKeys) {
       const careers = this.facultiesMap[faculty] || [];
@@ -194,6 +213,15 @@ export class ForoComponent implements OnInit, OnDestroy {
         this.formCareersList = careers;
         this.newPostCareer = foundCareer;
         break;
+      }
+    }
+
+    // Fallback de seguridad si no hay coincidencia
+    if (!this.newPostFaculty && this.facultyKeys.length > 0) {
+      this.newPostFaculty = this.facultyKeys[0];
+      this.formCareersList = this.facultiesMap[this.newPostFaculty] || [];
+      if (this.formCareersList.length > 0) {
+        this.newPostCareer = this.formCareersList[0];
       }
     }
   }

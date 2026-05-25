@@ -59,6 +59,27 @@
             <textarea [(ngModel)]="newPostContent" placeholder="Escribe el contenido aquí..." rows="3"
                       class="mc-field-focus w-full rounded-2xl border border-blue-100 bg-blue-50/30 px-4 py-3 text-sm outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/50 dark:focus:border-sky-500/30 dark:focus:bg-slate-950 dark:focus:ring-sky-500/10 resize-none"></textarea>
             
+            <!-- Selectores de Facultad y Carrera para Admin -->
+            <div *ngIf="isAdmin" class="grid grid-cols-1 gap-4 sm:grid-cols-2 animate-[fadeIn_0.2s_ease-out]">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">Facultad de la Publicación *</label>
+                <select [(ngModel)]="newPostFaculty" (change)="onFormFacultyChange()"
+                        class="w-full rounded-2xl border border-blue-100 bg-blue-50/30 px-3 py-2.5 text-xs outline-none transition focus:border-blue-300 focus:bg-white dark:border-slate-800 dark:bg-slate-950/50 dark:focus:border-sky-500/30 dark:focus:bg-slate-950">
+                  <option value="">-- Seleccionar Facultad --</option>
+                  <option *ngFor="let fac of facultyKeys" [value]="fac">{{ fac }}</option>
+                </select>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">Carrera Profesional *</label>
+                <select [(ngModel)]="newPostCareer" [disabled]="!newPostFaculty"
+                        class="w-full rounded-2xl border border-blue-100 bg-blue-50/30 px-3 py-2.5 text-xs outline-none transition focus:border-blue-300 focus:bg-white disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950/50 dark:focus:border-sky-500/30 dark:focus:bg-slate-950">
+                  <option value="">-- Seleccionar Carrera --</option>
+                  <option *ngFor="let car of formCareersList" [value]="car">{{ car }}</option>
+                </select>
+              </div>
+            </div>
+            
             <!-- Vista previa del archivo adjunto (Multimodal) -->
             <div *ngIf="newPostFile" class="mt-2 p-3 bg-blue-50/40 dark:bg-slate-950/40 border border-blue-100 dark:border-slate-800/80 rounded-2xl flex items-center justify-between gap-3 animate-[fadeIn_0.2s_ease-out]">
               <div class="flex items-center gap-3">
@@ -292,8 +313,8 @@
                   <input type="file" [id]="'commentFile-' + post.id" (change)="onCommentFileSelected($event, post.id)" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" class="hidden" />
                 </label>
                 <div class="flex-1 flex flex-col relative">
-                  <textarea [(ngModel)]="newCommentTexts[post.id]" placeholder="Escribe un comentario..." rows="1"
-                            class="min-h-[2.5rem] max-h-[6rem] w-full resize-none overflow-hidden rounded-2xl border border-blue-100 bg-blue-50/20 px-4 py-2.5 text-xs outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/40 dark:focus:border-sky-500/30 dark:focus:bg-slate-950 dark:focus:ring-sky-500/10"></textarea>
+                  <textarea [(ngModel)]="newCommentTexts[post.id]" placeholder="Escribe un comentario..." rows="2"
+                            class="min-h-[3.5rem] max-h-[10rem] w-full resize-none overflow-y-auto rounded-2xl border border-blue-100 bg-blue-50/20 px-4 py-2.5 text-xs outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-950/40 dark:focus:border-sky-500/30 dark:focus:bg-slate-950 dark:focus:ring-sky-500/10"></textarea>
                   <span *ngIf="newCommentFiles[post.id]" class="text-[10px] text-slate-500 absolute -bottom-4 left-2 truncate w-full">{{ newCommentFiles[post.id]?.name }}</span>
                 </div>
                 <button (click)="createComment(post.id)" [disabled]="!newCommentTexts[post.id]?.trim() && !newCommentFiles[post.id]"

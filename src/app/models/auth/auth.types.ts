@@ -4,7 +4,7 @@ export interface AuthUser {
   career: string;
   roles: string[];
   theme_preference?: 'system' | 'light' | 'dark';
-  is_dark?: boolean;
+  isDark?: boolean;
   profile_image_url?: string | null;
 }
 

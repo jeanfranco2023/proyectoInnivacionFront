@@ -281,9 +281,9 @@ export class ChatComponent implements OnInit, OnDestroy {
 
     const storedTheme = globalThis.localStorage?.getItem('chat-theme');
     let serverTheme: ThemePreference | null = null;
-    if (currentUser?.is_dark === true) {
+    if (currentUser?.isDark === true) {
       serverTheme = 'dark';
-    } else if (currentUser?.is_dark === false) {
+    } else if (currentUser?.isDark === false) {
       serverTheme = 'light';
     }
     const initialTheme: ThemePreference =
