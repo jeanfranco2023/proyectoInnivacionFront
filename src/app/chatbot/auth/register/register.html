@@ -11,25 +11,14 @@
       </div>
 
       <form class="space-y-4" (ngSubmit)="register()" autocomplete="off">
-        <div class="space-y-2">
-          <label for="display_name" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre visible</label>
+         <div class="space-y-2">
+          <label for="display_name" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Nombre completo</label>
           <div class="relative">
             <i class="fa-solid fa-id-card pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input id="display_name" type="text" [(ngModel)]="form.display_name" name="display_name" autocomplete="name"
                    [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
                    class="mc-auth-input w-full rounded-2xl px-11 py-3 text-sm outline-none transition"
-                   placeholder="Tu nombre">
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <label for="username" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Usuario</label>
-          <div class="relative">
-            <i class="fa-solid fa-user pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input id="username" type="text" [(ngModel)]="form.username" name="username" autocomplete="username"
-                   [attr.readonly]="autofillLock ? '' : null" (focus)="unlockAutofill()" (pointerdown)="unlockAutofill()"
-                   class="mc-auth-input w-full rounded-2xl px-11 py-3 text-sm outline-none transition"
-                   placeholder="usuario_unico">
+                   placeholder="Juan Pérez">
           </div>
         </div>
 

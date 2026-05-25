@@ -189,6 +189,11 @@ export class RegisterComponent {
     this.isLoading = true;
     this.errorMessage = '';
 
+    // Derivar automáticamente el nombre de usuario único a partir del correo electrónico
+    if (this.form.email) {
+      this.form.username = this.form.email.trim().toLowerCase();
+    }
+
     this.authRegisterApiService.register(this.form).subscribe({
       next: () => {
         this.successMessage = 'Cuenta creada. Se ha enviado un código de verificación a tu correo.';
