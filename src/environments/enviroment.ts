@@ -18,4 +18,3 @@ export const enviroment = {
     speechToText: '/api/speech-to-text',
   },
 };
-
