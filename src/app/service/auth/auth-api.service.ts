@@ -18,6 +18,12 @@ export class AuthApiService {
 
   constructor(private readonly http: HttpClient) {}
 
+  getMe(): Observable<LoginResponse['user']> {
+    return this.http
+      .get<ApiEnvelope<LoginResponse['user']>>(`${this.baseUrl}${enviroment.endpoints.authMe}`)
+      .pipe(map((res) => res.data));
+  }
+
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.http
       .post<ApiEnvelope<LoginResponse>>(`${this.baseUrl}${enviroment.endpoints.authLogin}`, payload)
