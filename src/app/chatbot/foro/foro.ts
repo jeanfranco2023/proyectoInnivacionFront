@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ForoApiService, Post, Comment } from '../../service/foro/foro-api.service';
@@ -14,7 +14,7 @@ import { enviroment } from '../../../environments/enviroment';
   standalone: true,
   imports: [CommonModule, FormsModule, SidebarComponent]
 })
-export class ForoComponent implements OnInit {
+export class ForoComponent implements OnInit, OnDestroy {
   posts: Post[] = [];
   commentsByPost: { [postId: string]: Comment[] } = {};
   expandedComments: { [postId: string]: boolean } = {};
@@ -24,6 +24,7 @@ export class ForoComponent implements OnInit {
   newPostTitle = '';
   newPostContent = '';
   newPostFile: File | null = null;
+  newPostFilePreviewUrl: string | null = null;
   newCommentTexts: { [postId: string]: string } = {};
   newCommentFiles: { [postId: string]: File | null } = {};
 
@@ -31,6 +32,7 @@ export class ForoComponent implements OnInit {
   isAdmin = false;
   errorMessage = '';
   successMessage = '';
+  private pollIntervalId: any = null;
 
   // Diccionario de facultades y carreras obtenido del backend
   facultiesMap: { [key: string]: string[] } = {};
@@ -63,11 +65,102 @@ export class ForoComponent implements OnInit {
     }
     this.loadFaculties();
     this.loadPosts();
+    this.startPolling();
+  }
+
+  ngOnDestroy() {
+    this.stopPolling();
+  }
+
+  startPolling() {
+    this.stopPolling();
+    this.pollIntervalId = setInterval(() => {
+      this.pollPosts();
+    }, 7000); // Polling cada 7 segundos para sincronización en tiempo real
+  }
+
+  stopPolling() {
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+    }
+  }
+
+  pollPosts() {
+    this.foroApiService.getPosts(this.selectedFilterCareer || undefined).subscribe({
+      next: (fetchedPosts) => {
+        const fetchedIds = new Set(fetchedPosts.map(p => p.id));
+        
+        fetchedPosts.forEach((fetched) => {
+          const local = this.posts.find(p => p.id === fetched.id);
+          if (local) {
+            local.likes = fetched.likes;
+            local.likes_count = fetched.likes_count;
+            local.is_liked = fetched.is_liked;
+            local.is_pinned = fetched.is_pinned;
+            local.comments_count = fetched.comments_count;
+            local.title = fetched.title;
+            local.content = fetched.content;
+            local.file_url = fetched.file_url;
+            local.file_name = fetched.file_name;
+            local.author_display_name = fetched.author_display_name;
+            local.author_username = fetched.author_username;
+          } else {
+            this.posts.push(fetched);
+          }
+        });
+
+        this.posts.sort((a, b) => {
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        this.posts = this.posts.filter(p => fetchedIds.has(p.id));
+
+        this.posts.forEach((post) => {
+          if (this.expandedComments[post.id]) {
+            this.silentLoadComments(post.id);
+          }
+        });
+
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error silent polling posts:', err)
+    });
+  }
+
+  silentLoadComments(postId: string) {
+    this.foroApiService.getComments(postId).subscribe({
+      next: (comments) => {
+        this.commentsByPost[postId] = comments;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error silently loading comments:', err)
+    });
   }
 
   getApiUrl(path: string | undefined): string {
     if (!path) return '';
     return `${enviroment.apiBaseUrl.trim()}${path}`;
+  }
+
+  isImage(url: string | undefined): boolean {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    return lower.endsWith('.png') || 
+           lower.endsWith('.jpg') || 
+           lower.endsWith('.jpeg') || 
+           lower.endsWith('.webp') || 
+           lower.endsWith('.gif');
+  }
+
+  isDocument(url: string | undefined): boolean {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    return lower.endsWith('.pdf') || 
+           lower.endsWith('.doc') || 
+           lower.endsWith('.docx');
   }
 
   loadFaculties() {
@@ -190,7 +283,27 @@ export class ForoComponent implements OnInit {
     const file = event.target.files[0];
     if (file) {
       this.newPostFile = file;
+      if (this.newPostFilePreviewUrl) {
+        URL.revokeObjectURL(this.newPostFilePreviewUrl);
+        this.newPostFilePreviewUrl = null;
+      }
+      if (file.type.startsWith('image/')) {
+        this.newPostFilePreviewUrl = URL.createObjectURL(file);
+      }
+      this.cdr.detectChanges();
     }
+    if (event.target) {
+      event.target.value = '';
+    }
+  }
+
+  removePostFile() {
+    this.newPostFile = null;
+    if (this.newPostFilePreviewUrl) {
+      URL.revokeObjectURL(this.newPostFilePreviewUrl);
+      this.newPostFilePreviewUrl = null;
+    }
+    this.cdr.detectChanges();
   }
 
   createPost() {
@@ -219,6 +332,10 @@ export class ForoComponent implements OnInit {
         this.posts.unshift(newPost);
         this.newPostTitle = '';
         this.newPostContent = '';
+        if (this.newPostFilePreviewUrl) {
+          URL.revokeObjectURL(this.newPostFilePreviewUrl);
+          this.newPostFilePreviewUrl = null;
+        }
         this.newPostFile = null;
         this.setDefaultUserFacultyAndCareer();
         this.successMessage = '¡Publicación creada exitosamente!';

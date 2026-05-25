@@ -170,4 +170,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
       },
     });
   }
+
+  getWebChats(): any[] {
+    return (this.misChats || []).filter(chat => chat.titulo !== 'Conversación de Telegram');
+  }
+
+  getTelegramChats(): any[] {
+    return (this.misChats || []).filter(chat => chat.titulo === 'Conversación de Telegram');
+  }
 }

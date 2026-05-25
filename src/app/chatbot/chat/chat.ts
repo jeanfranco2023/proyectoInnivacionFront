@@ -422,7 +422,10 @@ export class ChatComponent implements OnInit, OnDestroy {
     try {
       const chats = await firstValueFrom(this.chatApiService.listChats(username));
 
-      this.misChats = chats.map((chat) => this.mapChatSummary(chat));
+      // Filtrar para excluir el chat interno de Telegram de la interfaz web
+      const webChats = (chats || []).filter((chat) => chat.title !== 'Conversación de Telegram');
+
+      this.misChats = webChats.map((chat) => this.mapChatSummary(chat));
       void this.preloadChatsDetails(this.misChats.slice(0, 6));
     } catch {
       this.setMicStatus('No se pudo cargar el listado de chats del usuario.', 'error');

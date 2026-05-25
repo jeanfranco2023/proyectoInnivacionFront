@@ -19,6 +19,10 @@ export class DashboardComponent implements OnInit {
   filteredUsers: DashboardUser[] = [];
   searchTerm = '';
   
+  // Paginación de Usuarios
+  currentPage = 1;
+  pageSize = 8;
+  
   isLoadingStats = false;
   isLoadingUsers = false;
   errorMessage = '';
@@ -83,6 +87,7 @@ export class DashboardComponent implements OnInit {
           (u.career && u.career.toLowerCase().includes(search))
       );
     }
+    this.currentPage = 1; // Reiniciar a la primera página al buscar
     this.cdr.detectChanges();
   }
 
@@ -142,4 +147,98 @@ export class DashboardComponent implements OnInit {
   toggleSidebar() {
     this.sidebarToggleService.toggle();
   }
+
+  // ======================= METRICAS DE DECISIÓN =======================
+  get careerStats() {
+    if (this.users.length === 0) return [];
+    const careerCounts: Record<string, number> = {};
+    this.users.forEach((u) => {
+      const rawCareer = u.career || 'Sin Carrera';
+      let careerName = rawCareer;
+      if (rawCareer === 'ingenieria_tecnologia') careerName = 'Ingeniería y Tecnología';
+      else if (rawCareer === 'salud_ciencias_medicas') careerName = 'Salud y Ciencias Médicas';
+      else if (rawCareer === 'derecho_normatividad') careerName = 'Derecho y Normatividad';
+      else if (rawCareer === 'general') careerName = 'General Multidisciplinario';
+      
+      careerCounts[careerName] = (careerCounts[careerName] || 0) + 1;
+    });
+
+    const total = this.users.length;
+    const colors = [
+      'bg-blue-500 dark:bg-sky-500',
+      'bg-emerald-500 dark:bg-emerald-400',
+      'bg-violet-500 dark:bg-violet-400',
+      'bg-amber-500 dark:bg-amber-400',
+      'bg-rose-500 dark:bg-rose-400'
+    ];
+
+    return Object.entries(careerCounts)
+      .map(([name, count], index) => ({
+        name,
+        count,
+        percentage: Math.round((count / total) * 100),
+        colorClass: colors[index % colors.length]
+      }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  get systemKpis() {
+    const total = this.users.length;
+    if (total === 0) {
+      return {
+        avgChats: 0,
+        activeForumRate: 0,
+        totalAdmins: 0
+      };
+    }
+
+    const totalChats = this.users.reduce((acc, u) => acc + (u.chats_count || 0), 0);
+    const activeForumUsers = this.users.filter(u => (u.posts_count || 0) > 0 || (u.comments_count || 0) > 0).length;
+
+    return {
+      avgChats: parseFloat((totalChats / total).toFixed(1)),
+      activeForumRate: Math.round((activeForumUsers / total) * 100),
+      totalAdmins: this.users.filter(u => u.roles.includes('admin')).length
+    };
+  }
+
+  // ======================= LÓGICA DE PAGINACIÓN =======================
+  get paginatedUsers() {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.filteredUsers.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get totalPages() {
+    return Math.ceil(this.filteredUsers.length / this.pageSize);
+  }
+
+  get paginationPages(): number[] {
+    const pages: number[] = [];
+    for (let i = 1; i <= this.totalPages; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.cdr.detectChanges();
+    }
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.cdr.detectChanges();
+    }
+  }
+
+  goToPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.cdr.detectChanges();
+    }
+  }
 }
+
