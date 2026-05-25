@@ -19,6 +19,11 @@ export interface ActivityItem {
   timestamp: string;
 }
 
+export interface ModelUsageItem {
+  model: string;
+  count: number;
+}
+
 export interface DashboardStats {
   total_users: number;
   active_users: number;
@@ -27,6 +32,12 @@ export interface DashboardStats {
   total_chats: number;
   recent_activity: ActivityItem[];
   system_info: SystemInfo;
+  // Nuevas métricas clave
+  total_messages: number;
+  telegram_linked_users: number;
+  verified_users: number;
+  unverified_users: number;
+  model_usage: ModelUsageItem[];
 }
 
 export interface DashboardUser {

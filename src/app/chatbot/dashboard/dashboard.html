@@ -174,6 +174,84 @@
 
         </div>
 
+        <!-- NUEVA SECCIÓN: MÉTRICAS DE IA Y SEGURIDAD -->
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          
+          <!-- LLM & MODEL USAGE -->
+          <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-base font-bold text-slate-800 dark:text-white">Uso de Modelos de Inteligencia Artificial (LLM)</h2>
+              <span class="rounded-full bg-violet-100 dark:bg-violet-950 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700 dark:text-violet-300 uppercase font-mono">Modelos Activos</span>
+            </div>
+            
+            <div class="space-y-4">
+              <div *ngIf="!stats?.model_usage || stats?.model_usage?.length === 0" class="text-center py-6 text-sm text-slate-400 dark:text-slate-500">
+                No hay interacciones de IA registradas aún.
+              </div>
+              <div *ngFor="let m of stats?.model_usage; let i = index" class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs sm:text-sm">
+                  <span class="font-medium text-slate-700 dark:text-slate-300 font-mono">{{ m.model }}</span>
+                  <span class="font-bold text-slate-900 dark:text-white">{{ m.count }} respuestas ({{ getModelPercentage(m.count) }}%)</span>
+                </div>
+                <div class="h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div [class]="getModelColor(i)" class="h-full rounded-full transition-all duration-500" [style.width.%]="getModelPercentage(m.count)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MÉTRICAS DE INTEGRACIÓN Y SEGURIDAD -->
+          <div class="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-base font-bold text-slate-800 dark:text-white mb-6">Canales y Cifras de Seguridad</h2>
+            <div class="grid grid-cols-1 gap-4">
+              
+              <!-- Total Mensajes Procesados -->
+              <div class="rounded-2xl border border-blue-50/50 bg-blue-50/10 dark:border-slate-800 dark:bg-slate-950/40 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                    <i class="fa-solid fa-message text-xs"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300">Mensajes Totales IA</h4>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Respuestas y peticiones totales</p>
+                  </div>
+                </div>
+                <span class="text-lg font-bold text-slate-800 dark:text-white">{{ stats?.total_messages ?? 0 }}</span>
+              </div>
+
+              <!-- Vinculación Telegram -->
+              <div class="rounded-2xl border border-blue-50/50 bg-blue-50/10 dark:border-slate-800 dark:bg-slate-950/40 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
+                    <i class="fa-brands fa-telegram text-xs"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300">Alumnos en Telegram</h4>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Cuentas vinculadas al bot</p>
+                  </div>
+                </div>
+                <span class="text-lg font-bold text-slate-800 dark:text-white">{{ stats?.telegram_linked_users ?? 0 }}</span>
+              </div>
+
+              <!-- Tasa de Verificación de Email -->
+              <div class="rounded-2xl border border-blue-50/50 bg-blue-50/10 dark:border-slate-800 dark:bg-slate-950/40 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                    <i class="fa-solid fa-envelope-circle-check text-xs"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-slate-700 dark:text-slate-300">Tasa de Verificación</h4>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Emails validados en registro</p>
+                  </div>
+                </div>
+                <span class="text-lg font-bold text-slate-805 dark:text-white">{{ getVerificationPercentage() }}%</span>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
         <!-- SECCIÓN DE DETALLES DEL SISTEMA Y ACTIVIDAD RECIENTE -->
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">

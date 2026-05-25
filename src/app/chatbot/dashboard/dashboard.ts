@@ -244,5 +244,28 @@ export class DashboardComponent implements OnInit {
       this.cdr.detectChanges();
     }
   }
+
+  // ======================= NUEVAS METRICAS DE IA Y SEGURIDAD =======================
+  getModelColor(index: number): string {
+    const colors = [
+      'bg-violet-500 dark:bg-violet-400',
+      'bg-sky-500 dark:bg-sky-400',
+      'bg-emerald-500 dark:bg-emerald-400',
+      'bg-amber-500 dark:bg-amber-400'
+    ];
+    return colors[index % colors.length];
+  }
+
+  getModelPercentage(count: number): number {
+    if (!this.stats || !this.stats.model_usage || this.stats.model_usage.length === 0) return 0;
+    const total = this.stats.model_usage.reduce((acc, m) => acc + m.count, 0);
+    return total > 0 ? Math.round((count / total) * 100) : 0;
+  }
+
+  getVerificationPercentage(): number {
+    if (!this.stats || !this.stats.total_users) return 0;
+    const verified = this.stats.verified_users ?? 0;
+    return Math.round((verified / this.stats.total_users) * 100);
+  }
 }
 
