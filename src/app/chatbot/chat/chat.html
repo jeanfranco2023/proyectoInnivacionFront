@@ -4,12 +4,14 @@
   <app-sidebar
     [misChats]="misChats"
     [activeChatId]="activeChat ? activeChat.id : null"
+    [activeChatMessages]="messages"
     [isLoadingChats]="isLoadingChats"
     [(searchTerm)]="searchTerm"
     (onNewChat)="resetChat()"
     (onSelectChat)="cargarChat($event)"
     (onRenameChat)="openRenameModal(null, $event)"
-    (onDeleteChat)="openDeleteModal(null, $event)">
+    (onDeleteChat)="openDeleteModal(null, $event)"
+    (onSelectInteraction)="scrollToMessage($event)">
   </app-sidebar>
 
   <!-- MAIN CONTENT -->
@@ -66,7 +68,7 @@
       </div>
 
       <div class="chat-stream-wrap mx-auto w-full max-w-5xl space-y-4">
-        <div *ngFor="let m of messages; let i = index" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in mc-stagger-item flex w-full transition-all duration-200" [style.--mc-index]="i">
+        <div [id]="'msg-' + i" *ngFor="let m of messages; let i = index" [ngClass]="m.role === 'user' ? 'justify-end' : 'justify-start'" class="mc-message-in mc-stagger-item flex w-full transition-all duration-200" [style.--mc-index]="i">
           <div [ngClass]="m.role === 'user'
                 ? 'mc-user-bubble rounded-3xl rounded-tr-md border border-blue-500/20 dark:border-sky-300/20'
                 : 'mc-bot-bubble rounded-3xl rounded-tl-md'"

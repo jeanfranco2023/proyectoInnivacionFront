@@ -18,4 +18,3 @@ export class AuthLoginApiService {
       .pipe(map((res) => res.data));
   }
 }
-

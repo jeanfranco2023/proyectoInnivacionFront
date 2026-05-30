@@ -9,4 +9,3 @@ export const guestOnlyGuard: CanActivateFn = () => {
 
   return sessionService.isAuthenticated() ? router.createUrlTree(['/chat']) : true;
 };
-

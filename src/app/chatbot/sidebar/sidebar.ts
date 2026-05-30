@@ -17,6 +17,7 @@ import { SidebarToggleService } from '../../service/sidebar/sidebar-toggle.servi
 export class SidebarComponent implements OnInit, OnDestroy {
   @Input() misChats: any[] = [];
   @Input() activeChatId: string | null = null;
+  @Input() activeChatMessages: any[] = [];
   @Input() isLoadingChats: boolean = false;
   @Input() searchTerm: string = '';
   @Output() searchTermChange = new EventEmitter<string>();
@@ -25,6 +26,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Output() onSelectChat = new EventEmitter<any>();
   @Output() onRenameChat = new EventEmitter<any>();
   @Output() onDeleteChat = new EventEmitter<any>();
+  @Output() onSelectInteraction = new EventEmitter<number>();
 
   mobileSidebarOpen = false;
   isUserMenuOpen = false;
@@ -178,5 +180,34 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   getTelegramChats(): any[] {
     return (this.misChats || []).filter(chat => chat.titulo === 'Conversación de Telegram');
+  }
+
+  getRecentInteractions(): Array<{ text: string, originalIndex: number, count: number }> {
+    if (!this.activeChatMessages || this.activeChatMessages.length === 0) return [];
+    
+    // Filtrar los mensajes de tipo "usuario" que no sean archivos adjuntos
+    const userInteractions = this.activeChatMessages
+      .map((msg, index) => ({
+        text: msg.text || '',
+        role: msg.role,
+        isFile: !!msg.isFile,
+        originalIndex: index
+      }))
+      .filter(msg => msg.role === 'user' && !msg.isFile);
+    
+    // Mapear con conteo secuencial
+    const mapped = userInteractions.map((item, idx) => {
+      // Recortar texto largo de forma elegante para no sobrecargar el diseño lateral
+      const cleanText = item.text.trim();
+      const sliced = cleanText.length > 28 ? cleanText.substring(0, 28) + '...' : cleanText;
+      return {
+        text: sliced || 'Mensaje de texto',
+        originalIndex: item.originalIndex,
+        count: idx + 1
+      };
+    });
+    
+    // Retornar las últimas 4 interacciones
+    return mapped.slice(-4);
   }
 }

@@ -1261,6 +1261,17 @@ export class ChatComponent implements OnInit, OnDestroy {
     return 'No pude obtener respuesta del backend. Verifica que el API este activo y la URL en enviroment.ts.';
   }
 
+  scrollToMessage(index: number) {
+    const element = document.getElementById(`msg-${index}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('mc-highlight-pulse');
+      setTimeout(() => {
+        element.classList.remove('mc-highlight-pulse');
+      }, 2000);
+    }
+  }
+
   async cargarChat(chat: ChatItem) {
     if (!chat.id) {
       this.activeChat = chat;
